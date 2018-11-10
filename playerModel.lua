@@ -5,8 +5,8 @@ function Model:new()
     x = 300             -- Initial x
     y = 200             -- Initial y
     groundHeight = 300  -- Hardcoded ground level y
-    gravIntensity = 15  -- Gravity strength
-    jumpIntensity = 80  -- Speed impulse on jump
+    gravIntensity = 8  -- Gravity strength
+    jumpIntensity = 40  -- Speed impulse on jump
     dxStep = 10  -- Hardcoded speed
     dy = 0  -- Variable vertical speed
     inAir = false

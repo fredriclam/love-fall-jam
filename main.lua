@@ -3,22 +3,27 @@
 playerModel = require "playerModel"
 
 function love.load()
+    -- Window stuff
     love.window.setTitle("/fredric/")
-    image = love.graphics.newImage("monkas.png")
-    -- image:setFilter('nearest', 'nearest')
     love.graphics.setNewFont(12)
+
     -- love.graphics.setColor(0,0,0)
-    love.graphics.setBackgroundColor(50/255,30/255,0/255)
-    -- Instantiate player
+    love.graphics.setBackgroundColor(150/255,90/255,0/255)
+    -- Instantiate player model
     player = playerModel:new()
-    -- Image mask
-    quad = love.graphics.newQuad(100, 100, 164, 164, image:getWidth(), image:getHeight())
+
+    -- Loading spritesheet
+    spritesheet = love.graphics.newImage("spritesheet.png")
+    -- Use crisper filter for resizing
+    spritesheet:setFilter('nearest', 'nearest')
+    
+    -- Map from index to sprite cell
+    sheetCell = function(n) return love.graphics.newQuad(32*n, 0, 32, 32, spritesheet:getWidth(), spritesheet:getHeight()) end
 end
- 
 
 function love.draw()
     -- love.graphics.print("Placeholder", quad, 50, 50)
-    love.graphics.draw(image, quad, x, y)
+    love.graphics.draw(spritesheet, sheetCell(1), x, y)
 end
 
 function love.update()
@@ -26,7 +31,6 @@ function love.update()
     playerModel.grav()
     -- Check to see if in ground
     playerModel.checkGroundCollision()
-
     if love.keyboard.isDown("up") then
         playerModel.jump()
     end
