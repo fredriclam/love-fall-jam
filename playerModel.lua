@@ -1,50 +1,50 @@
 -- Player model
 
 local Model = {}
-function Model:new()
-    x = 300             -- Initial x
-    y = 200             -- Initial y
-    groundHeight = 300  -- Hardcoded ground level y
-    gravIntensity = 8  -- Gravity strength
-    jumpIntensity = 40  -- Speed impulse on jump
-    dxStep = 10  -- Hardcoded speed
-    dy = 0  -- Variable vertical speed
-    inAir = false
-    -- setmetatable(self)
-    -- self.__index = self
-end
+    
+-- setmetatable(self)
+-- self.__index = self
+
+Model.x = 300             -- Initial x
+Model.y = 200             -- Initial y
+Model.groundHeight = 400  -- Hardcoded ground level y
+Model.gravIntensity = 8  -- Gravity strength
+Model.jumpIntensity = 40  -- Speed impulse on jump
+Model.dxStep = 10  -- Hardcoded speed
+Model.dy = 0  -- Variable vertical speed
+Model.grounded = false
 
 function Model.jump(self)
-    if grounded then
-        dy = -jumpIntensity
-        grounded = false
+    if Model.grounded then
+        Model.dy = -Model.jumpIntensity
+        Model.grounded = false
     end
 end
 function Model.left(self)
-    x = x - dxStep
+    Model.x = Model.x - Model.dxStep
 end
 function Model.right(self)
-    x = x + dxStep
+    Model.x = Model.x + Model.dxStep
 end
 function Model.grav(self)
     -- Update speed
     if not grounded then
-        dy = dy + gravIntensity
+        Model.dy = Model.dy + Model.gravIntensity
     end
     -- Update position
-    y = y + dy
+    Model.y = Model.y + Model.dy
 end
 function Model.checkGroundCollision(self)
     -- Hard-coded ground
-    if y > groundHeight then
+    if Model.y > Model.groundHeight then
         -- Send to ground height
-        y = groundHeight
+        Model.y = Model.groundHeight
         -- Kill speed
-        dy = 0
+        Model.dy = 0
         -- Set grounded
-        grounded = true
+        Model.grounded = true
     end
 end
 
--- Export Model class
+-- Export Model object
 return Model
