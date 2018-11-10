@@ -2,39 +2,63 @@
 
 player = require "playerModel"
 tileModel = require "tileModel"
+tileMap = require "tileMap"
+
+-- Globals
+tileCountHorizontal = 24
+tileCountVertical = 18
 
 function love.load()
-    -- Window stuff
-    love.window.setTitle("/fredric/")
-    love.graphics.setNewFont(12)
+    -- Window stuff after load
+    -- love.window.setTitle("/fredric/")
+    -- love.window.setMode(24*32, 18*32)
+    
 
+    -- Colour mask
     -- love.graphics.setColor(0,0,0)
-    love.graphics.setBackgroundColor(150/255,90/255,0/255)
+    love.graphics.setNewFont(12)
+    love.graphics.setBackgroundColor(55/255,155/255,0/255)
+    -- Deep purple
+    -- love.graphics.setBackgroundColor(18/255,3/255,41/255)
 
     -- Loading spritesheet
     spritesheet = love.graphics.newImage("spritesheet.png")
     -- Use crisper filter for resizing
     spritesheet:setFilter('nearest', 'nearest')
     
-    -- Map from 0-based i, j indices to sprite cell on spritesheet
-    sheetCell = function(i, j) return love.graphics.newQuad(32*j, 32*i, 32, 32, spritesheet:getWidth(), spritesheet:getHeight()) end
+    -- Define global map from 0-based i, j indices to sprite cell on spritesheet
+    --   Dependent on spritesheet loading
+    sheetCell = function(i, j) return love.graphics.newQuad(32*j, 32*i,
+        32, 32, spritesheet:getWidth(), spritesheet:getHeight()) end
+end
 
-    -- Build new tile
-    t1 = tileModel.newTile(200, 200, 32, 32)
+-- Draw foreground tiles (after player is drawn)
+function tileDrawForeground()
+    local globalOffsetX = 0
+    local globalOffsetY = 0
+    local tileX = 32
+    local tileY = 32
+    for i = 1, tileCountVertical do
+        for j = 1, tileCountHorizontal do
+            -- Assume tile textures on row "1"
+            love.graphics.draw(spritesheet, sheetCell(1, tileMap[i][j]),
+                globalOffsetX + (j-1)*tileX, globalOffsetY + (i-1)*tileY)
+        end
+    end
 end
 
 function love.draw()
     -- love.graphics.print("Placeholder", quad, 50, 50)
+
+    -- Draw player
     love.graphics.draw(spritesheet, sheetCell(0, 0), player.x, player.y)
-    -- Draw floor
-    love.graphics.draw(spritesheet, sheetCell(1, 0), t1.getx(), t1.gety())
+    -- Draw foreground
+    tileDrawForeground()
 end
 
 function love.update()
     -- Resolve gravity on player (acc and velocity)
     player.grav()
-    -- Check to see if in ground
-    player.checkGroundCollision()
     if love.keyboard.isDown("up") then
         player.jump()
     end
@@ -44,6 +68,8 @@ function love.update()
     if love.keyboard.isDown("right") then
         player.right()
     end
+    -- Check to see if in ground
+    player.checkGroundCollision()
 end
 
 -- Controller
