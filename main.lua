@@ -1,26 +1,6 @@
+-- LOVE callback definitions
 
--- Player model
-Player = {}
-function Player:new()
-    x = 300
-    y = 0
-    dx = 2
-    inAir = false
-    -- setmetatable(self)
-    -- self.__index = self
-end
-
-function Player.jump(self)
-    if (not inAir) then
-        y = 1
-    end
-end
-function Player.left(self)
-    x = x - dx
-end
-function Player.right(self)
-    x = x + dx
-end
+playerModel = require "playerModel"
 
 function love.load()
     love.window.setTitle("/fredric/")
@@ -28,9 +8,9 @@ function love.load()
     -- image:setFilter('nearest', 'nearest')
     love.graphics.setNewFont(12)
     -- love.graphics.setColor(0,0,0)
-    love.graphics.setBackgroundColor(240,55,0)
+    love.graphics.setBackgroundColor(50/255,30/255,0/255)
     -- Instantiate player
-    player = Player:new()
+    player = playerModel:new()
     -- Image mask
     quad = love.graphics.newQuad(100, 100, 164, 164, image:getWidth(), image:getHeight())
 end
@@ -38,18 +18,23 @@ end
 
 function love.draw()
     -- love.graphics.print("Placeholder", quad, 50, 50)
-    love.graphics.draw(image, quad, x, 200)
+    love.graphics.draw(image, quad, x, y)
 end
 
 function love.update()
+    -- Resolve gravity on player (acc and velocity)
+    playerModel.grav()
+    -- Check to see if in ground
+    playerModel.checkGroundCollision()
+
     if love.keyboard.isDown("up") then
-        Player.jump()
+        playerModel.jump()
     end
     if love.keyboard.isDown("left") then
-        Player.left()
+        playerModel.left()
     end
     if love.keyboard.isDown("right") then
-        Player.right()
+        playerModel.right()
     end
 end
 
