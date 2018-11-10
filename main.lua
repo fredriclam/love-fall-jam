@@ -2,9 +2,9 @@
 -- Player model
 Player = {}
 function Player:new()
-    x = 0
+    x = 300
     y = 0
-    dx = 0.1
+    dx = 2
     inAir = false
     -- setmetatable(self)
     -- self.__index = self
@@ -19,7 +19,7 @@ function Player.left(self)
     x = x - dx
 end
 function Player.right(self)
-    x = x - dx
+    x = x + dx
 end
 
 function love.load()
@@ -38,19 +38,27 @@ end
 
 function love.draw()
     -- love.graphics.print("Placeholder", quad, 50, 50)
-    love.graphics.draw(image, quad, x, 50)
+    love.graphics.draw(image, quad, x, 200)
 end
 
 function love.update()
-    
+    if love.keyboard.isDown("up") then
+        Player.jump()
+    end
+    if love.keyboard.isDown("left") then
+        Player.left()
+    end
+    if love.keyboard.isDown("right") then
+        Player.right()
+    end
 end
 
 -- Controller
 function love.keypressed(key, scancode, isrepeat)
-    if key == "up" then
-        Player.jump()
-    elseif key == "left" then
-        Player.left()
-    end
-    print(key)
+    -- if key == "up" then
+    --     Player.jump()
+    -- elseif key == "left" then
+    --     Player.left()
+    -- end
+    -- print(key)
 end
