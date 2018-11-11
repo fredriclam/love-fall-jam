@@ -16,9 +16,10 @@ local globalLevel = 1                     -- Level of the global stage
 local mobMaxCount = 10                    -- Max number of mobs
 local currentSpawnChance = 0              -- Initial spawn chance (increases every failed spawn)
 local spawnTimer = 0                      -- Spawn timer (s)
-local defaultSpawnCheckInterval = 0.5     -- Seconds
+local defaultSpawnCheckInterval = 1.0     -- Seconds
 local defaultSpawnChanceIncrement = 0.1   -- Increments of spawn chance at level 1
 local mobCount = 0                        -- Current number of mobs
+local baseMobSpeed = 1.0
 
 -- Key bindings
 local keySets = {
@@ -48,7 +49,7 @@ function love.load()
     
     -- Colour mask
     -- love.graphics.setColor(0,0,0)
-    love.graphics.setNewFont(12)
+    love.graphics.setNewFont(18)
     love.graphics.setBackgroundColor(55/255,155/255,0/255)
     -- Deep purple
     -- love.graphics.setBackgroundColor(18/255,3/255,41/255)
@@ -148,10 +149,8 @@ function drawTileMap(tileMap)
 end
 
 function love.draw()
-    -- love.graphics.print("Placeholder", quad, 50, 50)
-
     -- For this draw cycle, draw at double the size (without affecting internal representation)
-    -- love.graphics.scale(1.1,1.1)
+    -- love.graphics.scale(2,2)
 
     -- Draw background
     drawTileMap(bgTiles)
@@ -163,10 +162,17 @@ function love.draw()
     -- Draw mobs
     -- Move mobs
     for k, v in pairs(mobList) do
-        love.graphics.draw(spritesheet, findMobSprite(v.getType(), v.getAnimState()), v.getX(), v.getY())
+        love.graphics.draw(spritesheet, findMobSprite(v.getType(), v.getAnimState()), v.getX(), v.getY(), 
+                           0.0, v.getSX(), v.getSY())
     end
     -- Draw foreground
     drawTileMap(fgTiles)
+
+    -- Print instructions on screen
+    love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
+    love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
+    love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
+    
 end
 
 function love.update()
@@ -205,7 +211,8 @@ function love.update()
     sampleSpawns()
     -- Call mob update
     for k, v in pairs(mobList) do
-        v.update()
+        -- Update using opposite player's coordinates
+        v.update(players[3 - v.getType()["flavour"]].getX(), players[3 - v.getType()["flavour"]].getY())
     end
 
 end
@@ -299,7 +306,7 @@ function sampleSpawns()
             -- Associate number of frames with level of mob
             type["frames"] = type["level"]
             -- Gen dx (times correct sign function)
-            local dx = (2 * type["level"]) * (0.5*screenWidth - x) / math.abs((0.5*screenWidth - x))
+            local dx = (type["level"] * baseMobSpeed) * (0.5*screenWidth - x) / math.abs((0.5*screenWidth - x))
             -- Gen dy
             local dy = 0
             -- Gen new mob

@@ -10,11 +10,16 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         type = type,
         dx = dx,
         dy = dy,
+        sx = 2,
+        sy = 2,
         width = width, 
         height = height,
         ticker = 0,
         animCycleDuration = 0.5,
-        animState = 0
+        animState = 0,
+        baseAccel = 0.1,
+        maxAngleDegrees = 15,       -- Max chasing angle
+        maxSpeed = math.sqrt(dx*dx + dy*dy) -- Compute from initial speed
     }
     -- Return representation of bounding box for collisions
     local bbox = function()
@@ -27,9 +32,29 @@ function Model.newMob(type, x, y, width, height, dx, dy)
     end
 
     -- Update position of mob
-    local updatePos = function()
-        self.x = self.x + dx
-        self.y = self.y + dy
+    local updatePos = function(targetX, targetY)
+        -- Compute unit heading vector
+        local deltaX = targetX - self.x
+        local deltaY = targetY - self.y
+        local norm = math.sqrt(deltaX*deltaX + deltaY*deltaY)
+        deltaX = deltaX / norm
+        deltaY = deltaY / norm
+        -- Apply tracking acceleration
+        self.dx = self.dx + self.baseAccel*deltaX
+        self.dy = self.dy + self.baseAccel*deltaY
+        -- Limit turning angle to 30 degrees
+        if math.abs(self.dy / self.dx) > math.tan(math.rad(self.maxAngleDegrees)) then
+            self.dy = math.abs(self.dy) / self.dy * math.abs(math.tan(math.pi/6) * self.dx)
+        end
+        -- Limit speed
+        local speedRatio = math.sqrt(self.dx*self.dx + self.dy*self.dy) / self.maxSpeed
+        if speedRatio > 1 then
+            self.dx = self.dx / speedRatio
+            self.dy = self.dy / speedRatio
+        end
+        -- Update position
+        self.x = self.x + self.dx
+        self.y = self.y + self.dy
     end
 
     -- Update animation state of mob
@@ -50,8 +75,8 @@ function Model.newMob(type, x, y, width, height, dx, dy)
     end
 
     -- Update wrapper
-    local update = function()
-        updatePos()
+    local update = function(targetX, targetY)
+        updatePos(targetX, targetY)
         updateAnim()
     end
 
@@ -74,6 +99,12 @@ function Model.newMob(type, x, y, width, height, dx, dy)
     local getdy = function()
         return self.dy
     end
+    local getSX = function()
+        return self.sx
+    end
+    local getSY = function()
+        return self.sy
+    end
 
     return {
         bbox = bbox,
@@ -86,7 +117,9 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         getX = getX,
         getY = getY,
         getdx = getdx,
-        getdy = getdy
+        getdy = getdy,
+        getSX = getSX,
+        getSY = getSY,
     }
 end
 
