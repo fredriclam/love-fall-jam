@@ -21,6 +21,7 @@ local defaultSpawnCheckInterval = 1.0     -- Seconds
 local defaultSpawnChanceIncrement = 0.1   -- Increments of spawn chance at level 1
 local mobCount = 0                        -- Current number of mobs
 local mobsDefeated = 0                    -- Number of mobs defeated in total
+local previousDefeated = 0                -- Secondary counter for mobs defeated in previous levels
 
 -- Game state enumeration
 local gameStates = {
@@ -31,10 +32,12 @@ local gameStates = {
 }
 -- Current global game state
 local currentGameState = gameStates["playing"]
+-- Global timers
+local loseTimer = 0                    -- Decumulates after losing
 -- Graphical
 local headAdjustment = 11           -- Number of pixels to translate downward due to headAdjustment
 local backgroundScale = 2.0         -- Isotropic scaling for background texture
-local backgroundShiftStep = 50     -- Number of pixels to advance background by per level
+local backgroundShiftStep = 50      -- Number of pixels to advance background by per level
 local backgroundDepth = 0           -- Current background depth
 local backgroundAdjustRate = 0.05
 -- Key bindings
@@ -164,6 +167,7 @@ function love.load()
         victory = love.audio.newSource("victory.wav", "static"),
         destroy = love.audio.newSource("destroy.wav", "static"),
         bgm = love.audio.newSource("bgm.wav", "static"),
+        defeat = love.audio.newSource("defeat.wav", "static"),
     }
 
     -- Init players
@@ -206,13 +210,16 @@ function love.draw()
     local jitter = 0
     love.graphics.draw(spritesheet, findBackground(backgroundDepth, jitter), 0, 0, 0.0, backgroundScale, backgroundScale)
 
-    if currentGameState == gameStates["playing"] then
+    -- Shared tasks
+    if currentGameState == gameStates["playing"]  or currentGameState == gameStates["lose"] then
         -- Draw background
         drawTileMap(bgTiles)
         -- Print instructions on screen (background layer)
-        love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
-        love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
-        love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
+        if globalLevel == 1 then
+            love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
+            love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
+            love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
+        end
         -- Draw players
         for i = 1, 2 do
             love.graphics.draw(spritesheet, findPlayerSprite(players[i].isHeadingLeft(), players[i].getID(), players[i].getAnimState()),
@@ -256,7 +263,21 @@ function love.draw()
 
         -- UI: reset color filter
         love.graphics.setColor(1, 1, 1, 100)
+    end -- playing and lose states
+    if currentGameState == gameStates["lose"] then
+        if loseTimer > -4 then -- Lose timer from what it's set to (>0) down to -4
+            -- Print statistics
+            love.graphics.setColor(93/255, 22/255, 187/255, 100)
+            love.graphics.printf("You vanquished " .. previousDefeated + mobsDefeated .. " Things", 0.*screenWidth, 0.45*screenHeight, 2*0.5*screenWidth, "center")
+            love.graphics.printf("Restarting...", 0.*screenWidth, 0.5*screenHeight, 2*0.5*screenWidth, "center")
+            love.graphics.setColor(1, 1, 1, 100)
+        else
+            currentGameState = gameStates["ready"]
+        end
+        -- Update lose timer
+        loseTimer = loseTimer - love.timer.getDelta()
     end
+
 end
 
 function love.update()
@@ -271,6 +292,7 @@ function love.update()
             -- Level up
             globalLevel = globalLevel + 1
             -- Reset mobs defeated
+            previousDefeated = previousDefeated + mobsDefeated
             mobsDefeated = 0
         end
         -- Update players
@@ -306,7 +328,10 @@ function love.update()
             -- Resolve ground, mob collision and animation state
             local isHit = players[i].lateUpdate(collisionList, mobList)
             if isHit then
+                sounds["defeat"]:play()
                 currentGameState = gameStates["lose"]
+                loseTimer = 1.0 -- Set lose timer for delayed animation
+                love.graphics.setColor(1, 0, 0, 100) -- Flash red on next draw cycle
             end
         end
         -- Mob spawn sampler

@@ -6,4 +6,4 @@ Hold out on a strange platform as you get attacked by alien shards of red and bl
 
 The goal of this project was to explore LOVE2D as an option for developing a 16-bit style MOBA, and to celebrate open source!
 
-Made using only hand-rolled asset and code, on an open-source framework. Fueled by coffee and bubble tea.
+Sounds produced on [BeepBox](https://www.beepbox.co). Made using only hand-rolled asset and code, on an open-source framework. Inspired by the likes of Rockman and Risk of Rain. Fueled by coffee and bubble tea.
