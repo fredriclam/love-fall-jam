@@ -39,6 +39,8 @@ function Model.jump(self)
     if Model.grounded and not Model.isAttacking then
         Model.dy = -Model.jumpIntensity
         Model.grounded = false
+        soundJump:stop()
+        soundJump:play()
     end
 end
 

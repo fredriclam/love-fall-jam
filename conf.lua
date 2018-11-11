@@ -5,8 +5,8 @@ function love.conf(t)
     t.window.title = "/fredric/"
     t.window.borderless = true
 
-    -- Default module exclusions
-    t.modules.audio = false
+    -- Default module inclusions
+    t.modules.audio = true
     t.modules.data = false
     t.modules.event = true
     t.modules.font = true
@@ -17,7 +17,7 @@ function love.conf(t)
     t.modules.math = false
     t.modules.mouse = false
     t.modules.physics = false
-    t.modules.sound = false
+    t.modules.sound = true
     t.modules.system = true
     t.modules.thread = false
     t.modules.timer = true

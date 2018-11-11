@@ -53,6 +53,9 @@ function love.load()
             end
         end
     end
+
+    -- Load audio sources
+    soundJump = love.audio.newSource("jump.wav", "static")
 end
 
 -- Draw foreground tiles (after player is drawn)
