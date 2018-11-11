@@ -247,6 +247,7 @@ function Model.newPlayer(playerID, spawnX, spawnY)
     local getY = function() return self.y end
     local getSX = function() return self.sx end
     local getSY = function() return self.sy end
+    local getWidth = function() return self.width end
 
     return {
         jump = jump,
@@ -267,6 +268,7 @@ function Model.newPlayer(playerID, spawnX, spawnY)
         getY = getY,
         getSX = getSX,
         getSY = getSY,
+        getWidth = getWidth,
     }
 
 end

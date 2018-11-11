@@ -5,6 +5,7 @@ tileModel = require "tileModel"
 bgTiles = require "backgroundTileMap"
 fgTiles = require "foregroundTileMap"
 mobModel = require "mobModel"
+projectileModel = require "projectileModel"
 
 -- Shared constants
 local tileCountHorizontal = 24  -- Num tiles horizontally in window
@@ -20,6 +21,9 @@ local defaultSpawnCheckInterval = 1.0     -- Seconds
 local defaultSpawnChanceIncrement = 0.1   -- Increments of spawn chance at level 1
 local mobCount = 0                        -- Current number of mobs
 local baseMobSpeed = 1.0
+
+-- Graphical
+local headAdjustment = 11 -- Number of pixels to translate downward due to headAdjustment
 
 -- Key bindings
 local keySets = {
@@ -97,6 +101,16 @@ function love.load()
                                      spritesheet:getWidth(), spritesheet:getHeight())
     end
 
+    findProjectileSprite = function(ID, facingLeft)
+        local x = 0
+        local y = (ID-1)*16
+        if facingLeft then
+            y = y + 8
+        end
+        return love.graphics.newQuad(x, y, 8, 8,
+                                     spritesheet:getWidth(), spritesheet:getHeight())        
+    end
+
     -- Load models for background tile map only
     collisionList = {}
     for i = 1, tileCountVertical-5 do -- Ignore last 5 rows (optimization)
@@ -131,6 +145,7 @@ function love.load()
 
     -- Init mob list
     mobList = {}
+    projectilesList = {}
 end
 
 -- Draw foreground tiles (after player is drawn)
@@ -154,6 +169,10 @@ function love.draw()
 
     -- Draw background
     drawTileMap(bgTiles)
+    -- Print instructions on screen (background layer)
+    love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
+    love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
+    love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
     -- Draw players
     for i = 1, 2 do
         love.graphics.draw(spritesheet, findPlayerSprite(players[i].isHeadingLeft(), players[i].getID(), players[i].getAnimState()),
@@ -164,15 +183,15 @@ function love.draw()
     for k, v in pairs(mobList) do
         love.graphics.draw(spritesheet, findMobSprite(v.getType(), v.getAnimState()), v.getX(), v.getY(), 
                            0.0, v.getSX(), v.getSY())
+        
     end
     -- Draw foreground
     drawTileMap(fgTiles)
-
-    -- Print instructions on screen
-    love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
-    love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
-    love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
-    
+    -- Draw projectiles
+    for k, v in pairs(projectilesList) do
+        love.graphics.draw(spritesheet, findProjectileSprite(v.getSourceID(), v.isHeadingLeft()),
+                v.getX(), v.getY(), 0.0, v.getSX(), v.getSY())
+    end
 end
 
 function love.update()
@@ -199,6 +218,13 @@ function love.update()
         end
         if love.keyboard.isDown(keySets[i]["shoot"]) then
             if players[i].executeAttack() then
+                -- Compute spawn position
+                local x = players[i].getX()
+                if not players[i].isHeadingLeft then
+                    x = x + players[i].getWidth()
+                end
+                local y = players[i].getY() + headAdjustment
+                table.insert(projectilesList, projectileModel.newProjectile(x, y, players[i].isHeadingLeft(), players[i].getID()))
                 sounds["beams"][i]:stop()
                 sounds["beams"][i]:play()
             end
@@ -215,6 +241,14 @@ function love.update()
         v.update(players[3 - v.getType()["flavour"]].getX(), players[3 - v.getType()["flavour"]].getY())
     end
 
+    -- Call projectile update
+    for k, v in pairs(projectilesList) do
+        -- Update using opposite player's coordinates
+        v.update()
+        if v.getX() > screenWidth or v.getX() < 0 then
+            table.remove(projectilesList, k)
+        end
+    end
 end
 
 -- Key press controller
