@@ -265,10 +265,13 @@ function love.update()
     -- Check mob-projectile collision
     for kMob, mob in pairs(mobList) do
         for kProj, proj in pairs(projectilesList) do
-            if mob.checkCollision(proj) then -- Delete mob
-                table.remove(mobList, kMob)
-                mobCount = mobCount - 1
-                mobsDefeated = mobsDefeated + 1
+            if mob.getType()["flavour"] == proj.getSourceID() then -- It's a match!
+                if mob.checkCollision(proj) then -- Delete mob and projectile
+                    table.remove(mobList, kMob)
+                    mobCount = mobCount - 1
+                    mobsDefeated = mobsDefeated + 1
+                    table.remove(projectilesList, kProj)
+                end
             end
         end
     end
