@@ -1,6 +1,6 @@
 -- LOVE callback definitions
 
-player = require "playerModel"
+playerModel = require "playerModel"
 tileModel = require "tileModel"
 bgTiles = require "backgroundTileMap"
 fgTiles = require "foregroundTileMap"
@@ -8,6 +8,27 @@ fgTiles = require "foregroundTileMap"
 -- Globals
 tileCountHorizontal = 24
 tileCountVertical = 18
+
+-- Key bindings
+local keySets = {
+    -- Player 1 key bindings
+    {
+        up = "w",
+        down = "s",
+        left = "a",
+        right = "d",
+        shoot = "e"
+    },
+    -- Player 2 key bindings
+    {
+        up = "up",
+        down = "down",
+        left = "left",
+        right = "right",
+        shoot = "/"
+    },
+}
+
 
 function love.load()
     -- Window stuff after load
@@ -35,12 +56,16 @@ function love.load()
     -- Define global map from 0-based i, j indices to 16x32 (half-size) sprites on spritesheet
     -- with custom shift for left-facing sprites.
     --   Dependent on spritesheet loading
-    sheetCellHalf = function(i, j)
-        if player.headingLeft then
+    sheetCellHalfSize = function(headingLeft, id, j)
+        i = 2 -- Row where first player data is located
+        if headingLeft then -- Shift down for left-facing textures
             i = i + 1
         end
-        return love.graphics.newQuad(32*j, 32*i,
-        16, 32, spritesheet:getWidth(), spritesheet:getHeight())
+        if id == 2 then -- Shift down for second player
+            i = i + 2
+        end
+        return love.graphics.newQuad(32*j, 32*i, 16, 32,
+                                     spritesheet:getWidth(), spritesheet:getHeight())
     end
 
     -- Load models for background tile map only
@@ -54,8 +79,24 @@ function love.load()
         end
     end
 
-    -- Load audio sources
-    soundJump = love.audio.newSource("jump.wav", "static")
+    -- Load audio sources into table
+    sounds = {
+        jump = love.audio.newSource("jump.wav", "static"),
+        beams = {
+            love.audio.newSource("beam1.wav", "static"),
+            love.audio.newSource("beam2.wav", "static"),
+        },
+        beamRed = love.audio.newSource("beam2.wav", "static"),
+        victory = love.audio.newSource("victory.wav", "static"),
+        destroy = love.audio.newSource("destroy.wav", "static"),
+        bgm = love.audio.newSource("bgm.wav", "static"),
+    }
+
+    -- Init players
+    players = {
+        playerModel.newPlayer(1, 10*32, 10*32),
+        playerModel.newPlayer(2, 12*32, 10*32),
+    }
 end
 
 -- Draw foreground tiles (after player is drawn)
@@ -73,11 +114,6 @@ function drawTileMap(tileMap)
     end
 end
 
--- Draw animated player
-function playerDraw()
-    -- Draw player
-    love.graphics.draw(spritesheet, sheetCellHalf(2, player.animState), player.x, player.y, 0.0, player.sx, player.sy)
-end
 
 function love.draw()
     -- love.graphics.print("Placeholder", quad, 50, 50)
@@ -87,43 +123,50 @@ function love.draw()
 
     -- Draw background
     drawTileMap(bgTiles)
-    -- Draw player
-    playerDraw()
+    -- Draw players
+    for i = 1, 2 do
+        love.graphics.draw(spritesheet, sheetCellHalfSize(players[i].isHeadingLeft(), players[i].getID(), players[i].getAnimState()),
+                           players[i].getX(), players[i].getY(), 0.0, players[i].getSX(), players[i].getSY())
+    end
     -- Draw foreground
     drawTileMap(fgTiles)
 end
 
 function love.update()
-    -- Resolve gravity on player (acc and velocity), walking state
-    player.earlyUpdate()
-    
-    -- Resolve pressed keys
-    if love.keyboard.isDown("up") then
-        player.jump()
+    for i = 1, 2 do
+        -- Resolve gravity on player (acc and velocity), walking state
+        players[i].earlyUpdate()
+        -- Resolve pressed keys
+        if love.keyboard.isDown(keySets[i]["up"]) then
+            if players[i].jump() then
+                sounds["jump"]:stop()
+                sounds["jump"]:play()
+            end
+        end
+        if love.keyboard.isDown(keySets[i]["left"]) and not love.keyboard.isDown(keySets[i]["right"]) then
+            players[i].left()
+        end
+        if love.keyboard.isDown(keySets[i]["right"]) and not love.keyboard.isDown(keySets[i]["left"]) then
+            players[i].right()
+        end
+        if love.keyboard.isDown(keySets[i]["shoot"]) then
+            if players[i].executeAttack() then
+                sounds["beams"][i]:stop()
+                sounds["beams"][i]:play()
+            end
+        end
+        -- Resolve ground collision and animation state
+        players[i].lateUpdate(collisionList)
     end
-    if love.keyboard.isDown("left") and not love.keyboard.isDown("right") then
-        player.left()
-    end
-    if love.keyboard.isDown("right") and not love.keyboard.isDown("left") then
-        player.right()
-    end
-    if love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") then
-        player.executeAttack()
-
-    end
-
-    
-    -- Resolve ground collision and animation state
-    player.lateUpdate(collisionList)
     
 end
 
--- Controller
+-- Key press controller
 function love.keypressed(key, scancode, isrepeat)
     -- if key == "up" then
-    --     player.jump()
+    --     
     -- elseif key == "left" then
-    --     player.left()
+    --     
     -- end
     -- print(key)
 end
