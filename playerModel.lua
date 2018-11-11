@@ -30,7 +30,7 @@ Model.boundaryxMin = 6*32   -- Hardcoded horizontal bounding box
 -- Physics
 Model.gravIntensity = 0.5   -- Gravity strength
 Model.jumpIntensity = 10    -- Speed impulse on jump
-Model.dxStep = 3.5          -- Hardcoded speed
+Model.dxStep = 4.5          -- Hardcoded speed
 Model.dy = 0                -- Variable vertical speed
 Model.grounded = false      -- Flag to mark when standing on ground
 
@@ -140,6 +140,7 @@ function Model.checkCollision(obj)
         if best <= 2 then -- Correct x
             Model.x = Model.x + corrections[best]
         else -- Correct y
+            Model.dy = 0
             Model.y = Model.y + corrections[best]
         end
 

@@ -2,7 +2,8 @@
 
 player = require "playerModel"
 tileModel = require "tileModel"
-tileMap = require "tileMap"
+bgTiles = require "backgroundTileMap"
+fgTiles = require "foregroundTileMap"
 
 -- Globals
 tileCountHorizontal = 24
@@ -42,11 +43,11 @@ function love.load()
         16, 32, spritesheet:getWidth(), spritesheet:getHeight())
     end
 
-    -- Load models for tile map
+    -- Load models for background tile map only
     collisionList = {}
     for i = 1, tileCountVertical-5 do -- Ignore last 5 rows (optimization)
         for j = 1, tileCountHorizontal do
-            if tileMap[i][j] >= 1 and tileMap[i][j] ~= 4 then
+            if bgTiles[i][j] >= 1 and bgTiles[i][j] ~= 4 then
                 -- Push a tile model onto list
                 table.insert(collisionList, tileModel.newTile(32*(j-1), 32*(i-1), 32, 32))
             end
@@ -55,7 +56,7 @@ function love.load()
 end
 
 -- Draw foreground tiles (after player is drawn)
-function tileDrawForeground()
+function drawTileMap(tileMap)
     local globalOffsetX = 0
     local globalOffsetY = 0
     local tileX = 32
@@ -81,10 +82,12 @@ function love.draw()
     -- For this draw cycle, draw at double the size (without affecting internal representation)
     -- love.graphics.scale(1.1,1.1)
 
+    -- Draw background
+    drawTileMap(bgTiles)
     -- Draw player
     playerDraw()
     -- Draw foreground
-    tileDrawForeground()
+    drawTileMap(fgTiles)
 end
 
 function love.update()
@@ -103,6 +106,7 @@ function love.update()
     end
     if love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") then
         player.executeAttack()
+
     end
 
     
