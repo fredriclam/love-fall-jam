@@ -2,6 +2,11 @@
 -- Collision is checked here for mob-projectile. For mob-player, see playerModel.
 
 local Model = {}
+
+-- Static variables
+Model.baseMobSpeed = 2.0
+Model.baseAccel = 0.1
+
 -- Tile factory
 function Model.newMob(type, x, y, width, height, dx, dy)
     -- Store object state
@@ -18,7 +23,7 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         ticker = 0,
         animCycleDuration = 0.5,
         animState = 0,
-        baseAccel = 0.1,
+
         maxAngleDegrees = 15,       -- Max chasing angle
         maxSpeed = math.sqrt(dx*dx + dy*dy) -- Compute from initial speed
     }
@@ -41,8 +46,8 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         deltaX = deltaX / norm
         deltaY = deltaY / norm
         -- Apply tracking acceleration
-        self.dx = self.dx + self.baseAccel*deltaX
-        self.dy = self.dy + self.baseAccel*deltaY
+        self.dx = self.dx + Model.baseAccel*deltaX
+        self.dy = self.dy + Model.baseAccel*deltaY
         -- Limit turning angle to 30 degrees
         if math.abs(self.dy / self.dx) > math.tan(math.rad(self.maxAngleDegrees)) then
             self.dy = math.abs(self.dy) / self.dy * math.abs(math.tan(math.pi/6) * self.dx)

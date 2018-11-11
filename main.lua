@@ -20,7 +20,6 @@ local spawnTimer = 0                      -- Spawn timer (s)
 local defaultSpawnCheckInterval = 1.0     -- Seconds
 local defaultSpawnChanceIncrement = 0.1   -- Increments of spawn chance at level 1
 local mobCount = 0                        -- Current number of mobs
-local baseMobSpeed = 1.0                  --   DIRTY
 local mobsDefeated = 0                    -- Number of mobs defeated in total
 
 -- Game state enumeration
@@ -32,9 +31,12 @@ local gameStates = {
 }
 -- Current global game state
 local currentGameState = gameStates["playing"]
-
 -- Graphical
-local headAdjustment = 11 -- Number of pixels to translate downward due to headAdjustment
+local headAdjustment = 11           -- Number of pixels to translate downward due to headAdjustment
+local backgroundScale = 2.0         -- Isotropic scaling for background texture
+local backgroundShiftStep = 10     -- Number of pixels to advance background by per level
+local backgroundDepth = 0           -- Current background depth
+local backgroundAdjustRate = 0.05
 -- Key bindings
 local keySets = {
     -- Player 1 key bindings
@@ -111,6 +113,8 @@ function love.load()
                                      spritesheet:getWidth(), spritesheet:getHeight())
     end
 
+    -- Define global map from 0-based i, j indices to 8x8 sprites on spritesheet
+    --   Dependent on spritesheet loading
     findProjectileSprite = function(ID, facingLeft)
         local x = 0
         local y = (ID-1)*16
@@ -119,6 +123,13 @@ function love.load()
         end
         return love.graphics.newQuad(x, y, 8, 8,
                                      spritesheet:getWidth(), spritesheet:getHeight())        
+    end
+
+    findBackground = function(depth, jitter)
+        local x = jitter + 0.5*(spritesheet:getWidth() - screenWidth/backgroundScale) -- Location if sample from centre of BG texture
+        local y = 14*32 + depth
+        return love.graphics.newQuad(x, y, screenWidth/backgroundScale, screenHeight/backgroundScale,
+            spritesheet:getWidth(), spritesheet:getHeight())        
     end
 
     -- Load models for background tile map only
@@ -176,6 +187,14 @@ end
 function love.draw()
     -- For this draw cycle, draw at double the size (without affecting internal representation)
     -- love.graphics.scale(2,2)
+
+    -- Draw background in all states
+    targetDepth = globalLevel * backgroundShiftStep
+    if backgroundDepth ~= targetDepth then -- Proportional approach to depth
+        backgroundDepth = backgroundDepth + backgroundAdjustRate*(targetDepth - backgroundDepth)
+    end
+    local jitter = 0
+    love.graphics.draw(spritesheet, findBackground(backgroundDepth, jitter), 0, 0, 0.0, backgroundScale, backgroundScale)
 
     if currentGameState == gameStates["playing"] then
         -- Draw background
@@ -356,7 +375,7 @@ function sampleSpawns()
             -- Associate number of frames with level of mob
             type["frames"] = type["level"]
             -- Gen dx (times correct sign function)
-            local dx = (type["level"] * baseMobSpeed) * (0.5*screenWidth - x) / math.abs((0.5*screenWidth - x))
+            local dx = (type["level"] * mobModel.baseMobSpeed) * (0.5*screenWidth - x) / math.abs((0.5*screenWidth - x))
             -- Gen dy
             local dy = 0
             -- Gen new mob
