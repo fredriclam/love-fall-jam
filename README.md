@@ -1,4 +1,4 @@
-## Doomed Descent
+# Doomed Descent
 
 2-player cooperative 2-D platformer game made in LOVE2D by [fredric.lam](fredric.ca) @ [Stanford Fall Game Jam 2018](https://www.svgadev.com/), themed *fall*.
 
@@ -10,6 +10,10 @@ Sounds produced on [BeepBox](https://www.beepbox.co). Made using only hand-rolle
 
 ![In-game screenshot](https://raw.githubusercontent.com/fredriclam/love-fall-jam/master/preview.png)
 
-### Technical
+## Technical
 
-The game can be run using LOVE2D, which runs main.lua. Other scripts are required by the main script to play.
+### Windows:
+- Run `doomeddescent.exe`.
+### Cross-platform:
+- Download [LOVE2d](https://love2d.org/) (install optional)
+- Run `doomeddescent.love` using `love.exe`
