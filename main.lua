@@ -34,7 +34,7 @@ local currentGameState = gameStates["playing"]
 -- Graphical
 local headAdjustment = 11           -- Number of pixels to translate downward due to headAdjustment
 local backgroundScale = 2.0         -- Isotropic scaling for background texture
-local backgroundShiftStep = 10     -- Number of pixels to advance background by per level
+local backgroundShiftStep = 50     -- Number of pixels to advance background by per level
 local backgroundDepth = 0           -- Current background depth
 local backgroundAdjustRate = 0.05
 -- Key bindings
@@ -55,6 +55,16 @@ local keySets = {
         right = "right",
         shoot = "/"
     },
+}
+-- Progress requirements
+local levelObjectives = { -- Number of mobs needed to advance level
+    6,
+    6,
+    8,
+    8,
+    12, -- 5
+    14,
+    14, -- 7
 }
 
 
@@ -127,7 +137,7 @@ function love.load()
 
     findBackground = function(depth, jitter)
         local x = jitter + 0.5*(spritesheet:getWidth() - screenWidth/backgroundScale) -- Location if sample from centre of BG texture
-        local y = 14*32 + depth
+        local y = 7*32 + depth
         return love.graphics.newQuad(x, y, screenWidth/backgroundScale, screenHeight/backgroundScale,
             spritesheet:getWidth(), spritesheet:getHeight())        
     end
@@ -222,6 +232,30 @@ function love.draw()
             love.graphics.draw(spritesheet, findProjectileSprite(v.getSourceID(), v.isHeadingLeft()),
                     v.getX(), v.getY(), 0.0, v.getSX(), v.getSY())
         end
+
+        -- UI: draw progress bar
+        love.graphics.draw(spritesheet, love.graphics.newQuad(32, 0, 16, 16, spritesheet:getWidth(), spritesheet:getHeight()),
+            0.7*screenWidth, 0.9*screenHeight, 0.0, 2, 2)
+
+        -- 
+        local barXMin = 0.75*screenWidth
+        local barXMax = 0.82*screenWidth
+        local barXMiniscus = mobsDefeated / levelObjectives[globalLevel] * (barXMax - barXMin) + barXMin
+        love.graphics.setColor(0, 0, 0, 100)
+        love.graphics.rectangle("line", barXMin, 0.9*screenHeight, barXMax-barXMin, 16)
+        love.graphics.setColor(0, 1, 0, 100)
+        love.graphics.rectangle("fill", barXMin, 0.9*screenHeight, barXMiniscus-barXMin, 16)
+        
+        
+        -- UI: draw stage info
+        love.graphics.draw(spritesheet, love.graphics.newQuad(48, 0, 16, 16, spritesheet:getWidth(), spritesheet:getHeight()),
+            0.85*screenWidth, 0.9*screenHeight, 0.0, 2, 2)
+        -- Placeholder stage text
+        love.graphics.setColor(0, 0, 0, 100)
+        love.graphics.printf(globalLevel, 0.*screenWidth, 0.9*screenHeight-5, 2*0.9*screenWidth, "center")
+
+        -- UI: reset color filter
+        love.graphics.setColor(1, 1, 1, 100)
     end
 end
 
@@ -231,69 +265,82 @@ function love.update()
         sounds["bgm"]:pause()
     end
 
-    for i = 1, 2 do
-        -- Resolve gravity on player (acc and velocity), walking state
-        players[i].earlyUpdate()
-        -- Resolve pressed keys
-        if love.keyboard.isDown(keySets[i]["up"]) then
-            if players[i].jump() then
-                sounds["jump"]:stop()
-                sounds["jump"]:play()
-            end
+    if currentGameState == gameStates["playing"] then
+        -- Check for objective
+        if mobsDefeated >= levelObjectives[globalLevel] then
+            -- Level up
+            globalLevel = globalLevel + 1
+            -- Reset mobs defeated
+            mobsDefeated = 0
         end
-        if love.keyboard.isDown(keySets[i]["left"]) and not love.keyboard.isDown(keySets[i]["right"]) then
-            players[i].left()
-        end
-        if love.keyboard.isDown(keySets[i]["right"]) and not love.keyboard.isDown(keySets[i]["left"]) then
-            players[i].right()
-        end
-        if love.keyboard.isDown(keySets[i]["shoot"]) then
-            if players[i].executeAttack() then
-                -- Compute spawn position
-                local x = players[i].getX()
-                if not players[i].isHeadingLeft then
-                    x = x + players[i].getWidth()
-                end
-                local y = players[i].getY() + headAdjustment
-                table.insert(projectilesList, projectileModel.newProjectile(x, y, players[i].isHeadingLeft(), players[i].getID()))
-                sounds["beams"][i]:stop()
-                sounds["beams"][i]:play()
-            end
-        end
-        -- Resolve ground, mob collision and animation state
-        local isHit = players[i].lateUpdate(collisionList, mobList)
-        if isHit then
-            currentGameState = gameStates["lose"]
-        end
-    end
-    -- Mob spawn sampler
-    sampleSpawns()
-    -- Call mob update
-    for k, v in pairs(mobList) do
-        -- Update using opposite player's coordinates
-        v.update(players[3 - v.getType()["flavour"]].getX(), players[3 - v.getType()["flavour"]].getY())
-    end
-    -- Call projectiles update
-    for k, v in pairs(projectilesList) do
-        -- Update using opposite player's coordinates
-        v.update()
-        if v.getX() > screenWidth or v.getX() < 0 then
-            table.remove(projectilesList, k)
-        end
-    end
-    -- Check mob-projectile collision
-    for kMob, mob in pairs(mobList) do
-        for kProj, proj in pairs(projectilesList) do
-            if mob.getType()["flavour"] == proj.getSourceID() then -- It's a match!
-                if mob.checkCollision(proj) then -- Delete mob and projectile
-                    table.remove(mobList, kMob)
-                    mobCount = mobCount - 1
-                    mobsDefeated = mobsDefeated + 1
-                    table.remove(projectilesList, kProj)
+        -- Update players
+        for i = 1, 2 do
+            -- Resolve gravity on player (acc and velocity), walking state
+            players[i].earlyUpdate()
+            -- Resolve pressed keys
+            if love.keyboard.isDown(keySets[i]["up"]) then
+                if players[i].jump() then
+                    sounds["jump"]:stop()
+                    sounds["jump"]:play()
                 end
             end
+            if love.keyboard.isDown(keySets[i]["left"]) and not love.keyboard.isDown(keySets[i]["right"]) then
+                players[i].left()
+            end
+            if love.keyboard.isDown(keySets[i]["right"]) and not love.keyboard.isDown(keySets[i]["left"]) then
+                players[i].right()
+            end
+            if love.keyboard.isDown(keySets[i]["shoot"]) then
+                if players[i].executeAttack() then
+                    -- Compute spawn position
+                    local x = players[i].getX()
+                    if not players[i].isHeadingLeft then
+                        x = x + players[i].getWidth()
+                    end
+                    local y = players[i].getY() + headAdjustment
+                    table.insert(projectilesList, projectileModel.newProjectile(x, y, players[i].isHeadingLeft(), players[i].getID()))
+                    sounds["beams"][i]:stop()
+                    sounds["beams"][i]:play()
+                end
+            end
+            -- Resolve ground, mob collision and animation state
+            local isHit = players[i].lateUpdate(collisionList, mobList)
+            if isHit then
+                currentGameState = gameStates["lose"]
+            end
         end
-    end
+        -- Mob spawn sampler
+        sampleSpawns()
+        -- Call mob update
+        for k, v in pairs(mobList) do
+            -- Update using opposite player's coordinates
+            v.update(players[3 - v.getType()["flavour"]].getX(), players[3 - v.getType()["flavour"]].getY())
+        end
+        -- Call projectiles update
+        for k, v in pairs(projectilesList) do
+            -- Update using opposite player's coordinates
+            v.update()
+            if v.getX() > screenWidth or v.getX() < 0 then
+                table.remove(projectilesList, k)
+            end
+        end
+        -- Check mob-projectile collision
+        for kMob, mob in pairs(mobList) do
+            for kProj, proj in pairs(projectilesList) do
+                if mob.getType()["flavour"] == proj.getSourceID() then -- It's a match!
+                    if mob.checkCollision(proj) then -- Delete mob and projectile
+                        table.remove(mobList, kMob)
+                        mobCount = mobCount - 1
+                        mobsDefeated = mobsDefeated + 1
+                        table.remove(projectilesList, kProj)
+                        -- Play sound
+                        sounds["destroy"]:stop()
+                        sounds["destroy"]:play()
+                    end
+                end
+            end
+        end
+    end -- game state: playing
 end
 
 -- Spawn sampler

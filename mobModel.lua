@@ -45,13 +45,15 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         local norm = math.sqrt(deltaX*deltaX + deltaY*deltaY)
         deltaX = deltaX / norm
         deltaY = deltaY / norm
+        local dxNew = self.dx + Model.baseAccel*deltaX
+        local dyNew = self.dy + Model.baseAccel*deltaY        
+        -- Penalize x-speed if angle is too large to make it "float" to correct altitude
+        if math.abs(dyNew / dxNew) > math.abs(math.tan(math.rad(self.maxAngleDegrees))) then
+            deltaX = 0.1*deltaX
+        end
         -- Apply tracking acceleration
         self.dx = self.dx + Model.baseAccel*deltaX
         self.dy = self.dy + Model.baseAccel*deltaY
-        -- Limit turning angle to 30 degrees
-        if math.abs(self.dy / self.dx) > math.tan(math.rad(self.maxAngleDegrees)) then
-            self.dy = math.abs(self.dy) / self.dy * math.abs(math.tan(math.pi/6) * self.dx)
-        end
         -- Limit speed
         local speedRatio = math.sqrt(self.dx*self.dx + self.dy*self.dy) / self.maxSpeed
         if speedRatio > 1 then
