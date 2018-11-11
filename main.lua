@@ -24,7 +24,8 @@ local mobCount = 0                        -- Current number of mobs
 local mobsDefeated = 0                    -- Number of mobs defeated in total
 local previousDefeated = 0                -- Secondary counter for mobs defeated in previous levels
 local playerHitBoxAdjustment = 5          -- Trimming the hitbox
-
+local victoryAttained = false
+local playerDown = false
 -- Game state enumeration
 local gameStates = {
     ready = 0,
@@ -40,9 +41,11 @@ local stateTimer = 0                    -- Decumulates after losing
 local defaultFontSize = 18
 local headAdjustment = 11           -- Number of pixels to translate downward due to headAdjustment
 local backgroundScale = 2.0         -- Isotropic scaling for background texture
-local backgroundShiftStep = 50      -- Number of pixels to advance background by per level
+local backgroundShiftStep = 80      -- Number of pixels to advance background by per level
 local backgroundDepth = 0           -- Current background depth
-local backgroundAdjustRate = 0.05
+local backgroundAdjustRate = 0.02
+-- Audio
+local isAudioOn = true
 -- Key bindings
 local keySets = {
     -- Player 1 key bindings
@@ -64,22 +67,22 @@ local keySets = {
 }
 -- Progress requirements
 local levelObjectives = { -- Number of mobs needed to advance level
+    2,
+    2,
+    4,
+    4,
+    6, -- 5
     6,
-    6,
-    8,
-    8,
-    12, -- 5
-    14,
-    14, -- 7
+    10, -- 7
 }
-finalLevel = 7
+local finalLevel = 7
 local levelObjectives = { -- Number of mobs needed to advance level
+    1,
     1,
     0,
     0,
-    0,
     0, -- 5
-    0,
+    1,
     1, -- 7
 }
 
@@ -241,9 +244,9 @@ function love.draw()
             love.graphics.setColor(1, 1, 1, 100)
         end
         -- Draw players
-        for i = 1, 2 do
-            love.graphics.draw(spritesheet, findPlayerSprite(players[i].isHeadingLeft(), players[i].getID(), players[i].getAnimState()),
-                            players[i].getX(), players[i].getY(), 0.0, players[i].getSX(), players[i].getSY())
+        for k, v in pairs(players) do
+            love.graphics.draw(spritesheet, findPlayerSprite(v.isHeadingLeft(), v.getID(), v.getAnimState()),
+                            v.getX(), v.getY(), 0.0, v.getSX(), v.getSY())
         end
         -- Draw mobs
         for k, v in pairs(mobList) do
@@ -260,7 +263,7 @@ function love.draw()
         end
 
         -- UI: draw progress bar
-        if globalLevel < 4 then
+        if globalLevel < 3 then
             love.graphics.setColor(0, 0, 0, 100)
         else
             love.graphics.setColor(1, 1, 1, 100)
@@ -272,7 +275,7 @@ function love.draw()
         local barXMin = 0.755*screenWidth
         local barXMax = 0.825*screenWidth
         local barXMiniscus = mobsDefeated / levelObjectives[globalLevel] * (barXMax - barXMin) + barXMin
-        if globalLevel < 4 then
+        if globalLevel < 3 then
             love.graphics.setColor(0, 0, 0, 100)
         else
             love.graphics.setColor(1, 1, 1, 100)
@@ -283,7 +286,7 @@ function love.draw()
         
         
         -- UI: draw STG indicator
-        if globalLevel < 4 then
+        if globalLevel < 3 then
             love.graphics.setColor(0, 0, 0, 100)
         else
             love.graphics.setColor(1, 1, 1, 100)
@@ -302,15 +305,19 @@ function love.draw()
         love.graphics.setColor(0, 0, 0, 100)
         love.graphics.printf("Enter to start your", 0.*screenWidth, 0.35*screenHeight, 2*0.5*screenWidth, "center")
         love.graphics.printf("2-player game: WASD + E, arrows keys + /", 0.*screenWidth, 0.75*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.printf("You can shoot them down, but use the right weapon.", 0.*screenWidth, 0.8*screenHeight, 2*0.5*screenWidth, "center")
         love.graphics.setNewFont(1.5*defaultFontSize)
-        -- Place holder title
+        -- Placeholder title
         love.graphics.printf("Doomed Descent", 0.*screenWidth, 0.4*screenHeight, 2*0.5*screenWidth, "center")
+        -- Sound toggle
+        love.graphics.setNewFont(0.5*defaultFontSize)
+        love.graphics.printf("[M] to toggle sound", 0.*screenWidth, 0.95*screenHeight, 2*0.9*screenWidth, "center")
         love.graphics.setNewFont(defaultFontSize)
         love.graphics.setColor(1, 1, 1, 100)
     elseif currentGameState == gameStates["lose"] then
         if stateTimer > -3 then -- Lose timer from what it's set to (>0) down to -3
             -- Print statistics
-            if globalLevel < 4 then
+            if globalLevel < 3 then
                 love.graphics.setColor(93/255, 22/255, 187/255, 100)
             else
                 love.graphics.setColor(1, 1, 1, 100)
@@ -333,9 +340,16 @@ function love.draw()
     elseif currentGameState == gameStates["victory"] then
         love.graphics.setNewFont(1.5*defaultFontSize)
         -- Victory message
-        love.graphics.printf("Job's finished. Victory?", 0.*screenWidth, 0.25*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.printf("All quiet. Victory?", 0.*screenWidth, 0.25*screenHeight, 2*0.5*screenWidth, "center")
         love.graphics.setNewFont(defaultFontSize)
         love.graphics.printf("Enter to return to main menu.", 0.*screenWidth, 0.35*screenHeight, 2*0.5*screenWidth, "center")
+        if playerDown then
+            love.graphics.setColor(1, 0, 0, 100)
+            love.graphics.setNewFont(1.5*defaultFontSize)
+            love.graphics.printf("Grim.", 0.*screenWidth, 0.65*screenHeight, 2*0.5*screenWidth, "center")
+            love.graphics.setNewFont(defaultFontSize)
+            love.graphics.setColor(1, 1, 1, 100)
+        end
     end -- Pure game states
 
 end
@@ -346,64 +360,67 @@ function love.update()
         sounds["bgm"]:pause()
     end
 
-    if currentGameState == gameStates["ready"] then -- game state: ready
-        if love.keyboard.isDown("return") then
-            sounds["beams"][1]:play()
-            currentGameState = gameStates["playing"]
-        end
-    elseif currentGameState == gameStates["playing"] then -- game state: playing
+    -- Shared tasks
+    if currentGameState == gameStates["playing"] or currentGameState == gameStates["victory"] then -- game state: playing
         -- Check if reached objective
         if mobsDefeated >= levelObjectives[globalLevel] then
             -- Check for victory
             if globalLevel == finalLevel then -- Change to victory state
                 currentGameState = gameStates["victory"]
-                sounds["victory"]:play()
+                if not victoryAttained then
+                    sounds["victory"]:play()
+                    victoryAttained = true
+                end
             else
                 -- Level up
                 globalLevel = globalLevel + 1
+                -- Reset spawn timer
+                spawnTimer = 0
                 -- Cache mobs defeated count to previousDefeated and Reset mobs defeated
                 previousDefeated = previousDefeated + mobsDefeated
                 mobsDefeated = 0
             end
             
         end
-        -- Update players
-        for i = 1, 2 do
-            -- Resolve gravity on player (acc and velocity), walking state
-            players[i].earlyUpdate()
-            -- Resolve pressed keys
-            if love.keyboard.isDown(keySets[i]["up"]) then
-                if players[i].jump() then
-                    sounds["jump"]:stop()
-                    sounds["jump"]:play()
-                end
-            end
-            if love.keyboard.isDown(keySets[i]["left"]) and not love.keyboard.isDown(keySets[i]["right"]) then
-                players[i].left()
-            end
-            if love.keyboard.isDown(keySets[i]["right"]) and not love.keyboard.isDown(keySets[i]["left"]) then
-                players[i].right()
-            end
-            if love.keyboard.isDown(keySets[i]["shoot"]) then
-                if players[i].executeAttack() then
-                    -- Compute spawn position
-                    local x = players[i].getX()
-                    if not players[i].isHeadingLeft then
-                        x = x + players[i].getWidth()
+        -- Wrap to skip is player downed
+        if not playerDown then
+            for keyPlayer, player in pairs(players) do
+                -- Resolve gravity on player (acc and velocity), walking state
+                player.earlyUpdate()
+                -- Resolve pressed keys
+                if love.keyboard.isDown(keySets[keyPlayer]["up"]) then
+                    if player.jump() then
+                        sounds["jump"]:stop()
+                        sounds["jump"]:play()
                     end
-                    local y = players[i].getY() + headAdjustment
-                    table.insert(projectilesList, projectileModel.newProjectile(x, y, players[i].isHeadingLeft(), players[i].getID()))
-                    sounds["beams"][i]:stop()
-                    sounds["beams"][i]:play()
                 end
-            end
-            -- Resolve ground, mob collision and animation state
-            local isHit = players[i].lateUpdate(collisionList, mobList)
-            if isHit then
-                sounds["defeat"]:play()
-                currentGameState = gameStates["lose"]
-                stateTimer = 1.0 -- Set lose timer for delayed animation
-                love.graphics.setColor(1, 0, 0, 100) -- Flash red on next draw cycle
+                if love.keyboard.isDown(keySets[keyPlayer]["left"]) and not love.keyboard.isDown(keySets[keyPlayer]["right"]) then
+                    player.left()
+                end
+                if love.keyboard.isDown(keySets[keyPlayer]["right"]) and not love.keyboard.isDown(keySets[keyPlayer]["left"]) then
+                    player.right()
+                end
+                if love.keyboard.isDown(keySets[keyPlayer]["shoot"]) then
+                    if player.executeAttack() then
+                        -- Compute spawn position
+                        local x = player.getX()
+                        if not player.isHeadingLeft then
+                            x = x + player.getWidth()
+                        end
+                        local y = player.getY() + headAdjustment
+                        table.insert(projectilesList, projectileModel.newProjectile(x, y, player.isHeadingLeft(), player.getID()))
+                        sounds["beams"][keyPlayer]:stop()
+                        sounds["beams"][keyPlayer]:play()
+                    end
+                end
+                -- Resolve ground, mob collision and animation state
+                local isHit = player.lateUpdate(collisionList, mobList)
+                if isHit then
+                    sounds["defeat"]:play()
+                    currentGameState = gameStates["lose"]
+                    stateTimer = 1.0 -- Set lose timer for delayed animation
+                    -- love.graphics.setColor(1, 0, 0, 100) -- Flash red on next draw cycle
+                end
             end
         end
         -- Mob spawn sampler
@@ -437,7 +454,27 @@ function love.update()
                 end
             end
         end
-    end -- game state: playing
+        -- Easter egg: post-victory friendly fire
+        if currentGameState == gameStates["victory"] then -- allow friendly fire
+            for keyPlayer, player in pairs(players) do
+                local isHit = false
+                -- Check for hit against opposite player's projectiles
+                for keyProj, proj in pairs(projectilesList) do
+                    if proj.getSourceID() ~= keyPlayer then
+                        isHit = isHit or player.checkHostileCollision(proj)
+                    end
+                end
+                if isHit then
+                    -- Delete player
+                    table.remove(players, keyPlayer)
+                    -- Flash red on next draw cycle
+                    love.graphics.setColor(1, 0, 0, 100)
+                    -- Raise flag for player down
+                    playerDown = true
+                end
+            end
+        end
+    end -- game state: playing or victory
 end
 
 -- Spawn sampler
@@ -447,7 +484,8 @@ function sampleSpawns()
     local spawnChanceIncrement = math.min(2, (1+globalLevel/7)) * defaultSpawnChanceIncrement
     -- Update spawn timer
     spawnTimer = spawnTimer + love.timer.getDelta()
-    if spawnTimer > spawnCheckInterval and mobCount < mobMaxCount then -- allow spawning
+    if spawnTimer > spawnCheckInterval and mobCount < mobMaxCount -- When timer fills, and enough space
+       and mobCount < levelObjectives[globalLevel] - mobsDefeated then -- allow spawning (no more than objective)
         -- Checked; reduce spawn timer
         spawnTimer = spawnTimer - spawnCheckInterval
         -- Check to see if spawn
@@ -534,12 +572,30 @@ end
 
 -- Key press controller
 function love.keypressed(key, scancode, isrepeat)
-    -- if key == "up" then
-    --     
-    -- elseif key == "left" then
-    --     
-    -- end
-    -- print(key)
+    -- Handle audio controls
+    if key == "m" then
+        if isAudioOn then
+            love.audio.setVolume(0.0)
+            isAudioOn = false
+        else
+            love.audio.setVolume(1.0)
+            isAudioOn = true
+        end
+    end
+
+    -- Handle enter to switch state (single press)
+    if currentGameState == gameStates["ready"] then
+        if love.keyboard.isDown("return") then
+            sounds["beams"][1]:play()
+            currentGameState = gameStates["playing"]
+        end
+    elseif currentGameState == gameStates["victory"] then
+        if love.keyboard.isDown("return") then
+            sounds["beams"][1]:play()
+            stageReset()
+            currentGameState = gameStates["ready"]
+        end
+    end
 end
 
 -- Resets globals (closure)
@@ -551,7 +607,13 @@ function stageReset()
     mobCount = 0
     mobsDefeated = 0
     previousDefeated = 0
-    globalLevel = 1
+    victoryAttained = false
+    playerDown = false
+    
+    -- Destroy all instances, relying on automatic garbage collector
+    mobList = {}
+    players = {}
+    projectilesList = {}
 
     -- Destroy all instances
     -- for k, v in pairs(mobList) do
@@ -563,11 +625,9 @@ function stageReset()
     -- for k, v in pairs(projectilesList) do
     --     table.remove(projectilesList, k)
     -- end
-    -- Destroy all instances, relying on automatic garbage collector
-    mobList = {}
-    players = {}
-    projectilesList = {}
+    
 
     -- Re-initialize players
     players = initPlayers()
+    
 end

@@ -284,6 +284,7 @@ function Model.newPlayer(playerID, width, height, spawnX, spawnY)
         checkGroundCollision = checkGroundCollision,
         checkCollision = checkCollision,
         earlyUpdate = earlyUpdate,
+        checkHostileCollision = checkHostileCollision,
         lateUpdate = lateUpdate,
         executeAttack = executeAttack,
         updateAnim = updateAnim,
