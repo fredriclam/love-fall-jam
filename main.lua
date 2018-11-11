@@ -13,6 +13,7 @@ local tileCountVertical = 18    -- Num tiles vertically in window
 local screenHeight = tileCountVertical*32
 local screenWidth = tileCountHorizontal*32
 
+-- Globals
 local globalLevel = 1                     -- Level of the global stage
 local mobMaxCount = 10                    -- Max number of mobs
 local currentSpawnChance = 0              -- Initial spawn chance (increases every failed spawn)
@@ -31,10 +32,11 @@ local gameStates = {
     win = 3,
 }
 -- Current global game state
-local currentGameState = gameStates["playing"]
+local currentGameState = gameStates["ready"]
 -- Global timers
 local loseTimer = 0                    -- Decumulates after losing
 -- Graphical
+local defaultFontSize = 18
 local headAdjustment = 11           -- Number of pixels to translate downward due to headAdjustment
 local backgroundScale = 2.0         -- Isotropic scaling for background texture
 local backgroundShiftStep = 50      -- Number of pixels to advance background by per level
@@ -70,6 +72,12 @@ local levelObjectives = { -- Number of mobs needed to advance level
     14, -- 7
 }
 
+function initPlayers()
+    return {
+        playerModel.newPlayer(1, 10*32, 10*32),
+        playerModel.newPlayer(2, 12*32, 10*32),
+    }
+end
 
 function love.load()
     -- Window stuff after load
@@ -78,7 +86,7 @@ function love.load()
     
     -- Colour mask
     -- love.graphics.setColor(0,0,0)
-    love.graphics.setNewFont(18)
+    font = love.graphics.setNewFont(defaultFontSize)
     love.graphics.setBackgroundColor(55/255,155/255,0/255)
     -- Deep purple
     -- love.graphics.setBackgroundColor(18/255,3/255,41/255)
@@ -171,10 +179,7 @@ function love.load()
     }
 
     -- Init players
-    players = {
-        playerModel.newPlayer(1, 10*32, 10*32),
-        playerModel.newPlayer(2, 12*32, 10*32),
-    }
+    players = initPlayers()
     sounds["bgm"]:setLooping(true)
     sounds["bgm"]:play()
 
@@ -207,18 +212,21 @@ function love.draw()
     if backgroundDepth ~= targetDepth then -- Proportional approach to depth
         backgroundDepth = backgroundDepth + backgroundAdjustRate*(targetDepth - backgroundDepth)
     end
-    local jitter = 0
-    love.graphics.draw(spritesheet, findBackground(backgroundDepth, jitter), 0, 0, 0.0, backgroundScale, backgroundScale)
+    local jitterX = 2*math.cos( 2*love.timer.getTime() )
+    local jitterY = 10*math.sin( love.timer.getTime() )
+    love.graphics.draw(spritesheet, findBackground(backgroundDepth + jitterX, jitterY), 0, 0, 0.0, backgroundScale, backgroundScale)
 
     -- Shared tasks
     if currentGameState == gameStates["playing"]  or currentGameState == gameStates["lose"] then
         -- Draw background
         drawTileMap(bgTiles)
-        -- Print instructions on screen (background layer)
-        if globalLevel == 1 then
+        -- Print instructions on screen (background layer) only in playing mode
+        if globalLevel == 1 and currentGameState == gameStates["playing"] then
+            love.graphics.setColor(0, 0, 0, 100)
             love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
             love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
             love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
+            love.graphics.setColor(1, 1, 1, 100)
         end
         -- Draw players
         for i = 1, 2 do
@@ -226,11 +234,10 @@ function love.draw()
                             players[i].getX(), players[i].getY(), 0.0, players[i].getSX(), players[i].getSY())
         end
         -- Draw mobs
-        -- Move mobs
         for k, v in pairs(mobList) do
             love.graphics.draw(spritesheet, findMobSprite(v.getType(), v.getAnimState()), v.getX(), v.getY(), 
                             0.0, v.getSX(), v.getSY())
-            
+            -- print(v.getType()["frames"])
         end
         -- Draw foreground
         drawTileMap(fgTiles)
@@ -241,37 +248,73 @@ function love.draw()
         end
 
         -- UI: draw progress bar
+        if globalLevel < 4 then
+            love.graphics.setColor(0, 0, 0, 100)
+        else
+            love.graphics.setColor(1, 1, 1, 100)
+        end
         love.graphics.draw(spritesheet, love.graphics.newQuad(32, 0, 16, 16, spritesheet:getWidth(), spritesheet:getHeight()),
             0.7*screenWidth, 0.9*screenHeight, 0.0, 2, 2)
 
         -- 
-        local barXMin = 0.75*screenWidth
-        local barXMax = 0.82*screenWidth
+        local barXMin = 0.755*screenWidth
+        local barXMax = 0.825*screenWidth
         local barXMiniscus = mobsDefeated / levelObjectives[globalLevel] * (barXMax - barXMin) + barXMin
-        love.graphics.setColor(0, 0, 0, 100)
-        love.graphics.rectangle("line", barXMin, 0.9*screenHeight, barXMax-barXMin, 16)
+        if globalLevel < 4 then
+            love.graphics.setColor(0, 0, 0, 100)
+        else
+            love.graphics.setColor(1, 1, 1, 100)
+        end
+        love.graphics.rectangle("line", barXMin, 0.91*screenHeight, barXMax-barXMin, 16)
         love.graphics.setColor(0, 1, 0, 100)
-        love.graphics.rectangle("fill", barXMin, 0.9*screenHeight, barXMiniscus-barXMin, 16)
+        love.graphics.rectangle("fill", barXMin, 0.91*screenHeight, barXMiniscus-barXMin, 16)
         
         
-        -- UI: draw stage info
+        -- UI: draw STG indicator
+        if globalLevel < 4 then
+            love.graphics.setColor(0, 0, 0, 100)
+        else
+            love.graphics.setColor(1, 1, 1, 100)
+        end
         love.graphics.draw(spritesheet, love.graphics.newQuad(48, 0, 16, 16, spritesheet:getWidth(), spritesheet:getHeight()),
-            0.85*screenWidth, 0.9*screenHeight, 0.0, 2, 2)
+            0.87*screenWidth, 0.91*screenHeight, 0.0, 2, 2)
         -- Placeholder stage text
-        love.graphics.setColor(0, 0, 0, 100)
-        love.graphics.printf(globalLevel, 0.*screenWidth, 0.9*screenHeight-5, 2*0.9*screenWidth, "center")
+        love.graphics.printf(globalLevel, 0.*screenWidth, 0.91*screenHeight-4, 2*0.93*screenWidth, "center")
 
         -- UI: reset color filter
         love.graphics.setColor(1, 1, 1, 100)
     end -- playing and lose states
-    if currentGameState == gameStates["lose"] then
+
+    -- Regular states
+    if currentGameState == gameStates["ready"] then
+        love.graphics.setColor(0, 0, 0, 100)
+        love.graphics.printf("Enter to start your", 0.*screenWidth, 0.35*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.printf("2-player game: WASD + E, arrows keys + /", 0.*screenWidth, 0.75*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.setNewFont(1.5*defaultFontSize)
+        -- Place holder title
+        love.graphics.printf("Doomed Descent", 0.*screenWidth, 0.4*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.setNewFont(defaultFontSize)
+        love.graphics.setColor(1, 1, 1, 100)
+        
+    elseif currentGameState == gameStates["lose"] then
         if loseTimer > -4 then -- Lose timer from what it's set to (>0) down to -4
             -- Print statistics
-            love.graphics.setColor(93/255, 22/255, 187/255, 100)
-            love.graphics.printf("You vanquished " .. previousDefeated + mobsDefeated .. " Things", 0.*screenWidth, 0.45*screenHeight, 2*0.5*screenWidth, "center")
+            if globalLevel < 4 then
+                love.graphics.setColor(93/255, 22/255, 187/255, 100)
+            else
+                love.graphics.setColor(1, 1, 1, 100)
+            end
+            -- Build output string str
+            local str = "You vanquished " .. previousDefeated + mobsDefeated .. " Thing"
+            if previousDefeated + mobsDefeated ~= 1 then
+                str = str .. "s"
+            end
+            str = str .. "."
+            love.graphics.printf(str, 0.*screenWidth, 0.45*screenHeight, 2*0.5*screenWidth, "center")
             love.graphics.printf("Restarting...", 0.*screenWidth, 0.5*screenHeight, 2*0.5*screenWidth, "center")
             love.graphics.setColor(1, 1, 1, 100)
         else
+            stageReset()
             currentGameState = gameStates["ready"]
         end
         -- Update lose timer
@@ -286,7 +329,12 @@ function love.update()
         sounds["bgm"]:pause()
     end
 
-    if currentGameState == gameStates["playing"] then
+    if currentGameState == gameStates["ready"] then
+        if love.keyboard.isDown("return") then
+            sounds["beams"][1]:play()
+            currentGameState = gameStates["playing"]
+        end
+    elseif currentGameState == gameStates["playing"] then
         -- Check for objective
         if mobsDefeated >= levelObjectives[globalLevel] then
             -- Level up
@@ -468,4 +516,30 @@ function love.keypressed(key, scancode, isrepeat)
     --     
     -- end
     -- print(key)
+end
+
+-- Resets globals (closure)
+function stageReset()
+    -- Reset counters and playing timers
+    globalLevel = 1
+    currentSpawnChance = 0
+    spawnTimer = 0
+    mobCount = 0
+    mobsDefeated = 0
+    previousDefeated = 0
+    globalLevel = 1
+
+    -- Destroy all instances
+    for k, v in pairs(mobList) do
+        table.remove(mobList, k)
+    end
+    for k, v in pairs(players) do
+        table.remove(players, k)
+    end
+    for k, v in pairs(projectilesList) do
+        table.remove(projectilesList, k)
+    end
+
+    -- Re-initialize players
+    players = initPlayers()
 end

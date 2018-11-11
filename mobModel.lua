@@ -21,7 +21,7 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         width = width, 
         height = height,
         ticker = 0,
-        animCycleDuration = 0.5,
+        animCycleDuration = 1,
         animState = 0,
 
         maxAngleDegrees = 15,       -- Max chasing angle
@@ -75,7 +75,7 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         end
         -- Use anim keyframes
         for i = 1, self.type["frames"] do
-            if self.ticker <= (1.0/self.type["frames"])*self.animCycleDuration then
+            if self.ticker <= i*(1.0/self.type["frames"])*self.animCycleDuration then
                 self.animState = i-1
                 return
             end
