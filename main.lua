@@ -79,9 +79,9 @@ local finalLevel = 7
 local levelObjectives = { -- Number of mobs needed to advance level
     1,
     1,
-    0,
-    0,
-    0, -- 5
+    1,
+    1,
+    1, -- 5
     1,
     1, -- 7
 }
@@ -238,9 +238,9 @@ function love.draw()
         -- Print instructions on screen (background layer) only in playing mode
         if globalLevel == 1 and currentGameState == gameStates["playing"] then
             love.graphics.setColor(0, 0, 0, 100)
-            love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
-            love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
-            love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
+            love.graphics.printf("SURVIVE.", 0.*screenWidth, 0.95*screenHeight, 2*0.06*screenWidth, "center")
+            love.graphics.printf("(WASD + E)", 0.*screenWidth, 0.95*screenHeight, 2*0.25*screenWidth, "center")
+            love.graphics.printf("(ARROWS + /)", 0.*screenWidth, 0.95*screenHeight, 2*0.45*screenWidth, "center")
             love.graphics.setColor(1, 1, 1, 100)
         end
         -- Draw players
@@ -302,14 +302,32 @@ function love.draw()
 
     -- Pure game states
     if currentGameState == gameStates["ready"] then
+        -- Title instructions
         love.graphics.setColor(0, 0, 0, 100)
-        love.graphics.printf("Enter to start your", 0.*screenWidth, 0.35*screenHeight, 2*0.5*screenWidth, "center")
-        love.graphics.printf("2-player game: WASD + E, arrows keys + /", 0.*screenWidth, 0.75*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.printf("[Enter] to start your", 0.*screenWidth, 0.3*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.printf("Player 1: WASD to move, E to shoot", 0.*screenWidth, 0.7*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.printf("Player 2: arrow keys to move, / to shoot", 0.*screenWidth, 0.75*screenHeight, 2*0.5*screenWidth, "center")
         love.graphics.printf("You can shoot them down, but use the right weapon.", 0.*screenWidth, 0.8*screenHeight, 2*0.5*screenWidth, "center")
         love.graphics.setNewFont(1.5*defaultFontSize)
+        
+        -- Titling
+        love.graphics.draw(spritesheet,  love.graphics.newQuad(7*32, 0, 67, 13, spritesheet:getWidth(), spritesheet:getHeight()),
+                           0.5*screenWidth-3.0/2*67, 0.42*screenHeight, 0.0, 3.0, 3.0)
+                           
+        for letterIndex = 1, 7 do -- Print monospaced characters with jitter
+            -- Get x-index for sprite
+            local spriteIndexX = 7*32 + (letterIndex-1)*6
+            -- Compute jitter
+            local y = 0.5*screenHeight + 3*math.sin(math.pow(love.timer.getTime(),1.4+0.2*letterIndex) + 2*letterIndex)
+            local scale = 3.0
+            local x = 0.5*screenWidth - scale/2*(7*4 + 6*2) + scale*6*(letterIndex-1) -- Total pixel width
+            love.graphics.draw(spritesheet,  love.graphics.newQuad(spriteIndexX, 16, 4, 9, spritesheet:getWidth(), spritesheet:getHeight()),
+                            x, y, 0.0, scale, scale)
+        end
         -- Placeholder title
-        love.graphics.printf("Doomed Descent", 0.*screenWidth, 0.4*screenHeight, 2*0.5*screenWidth, "center")
-        -- Sound toggle
+        -- love.graphics.printf("Doomed Descent", 0.*screenWidth, 0.4*screenHeight, 2*0.5*screenWidth, "center")
+
+        -- Sound toggle on HUD
         love.graphics.setNewFont(0.5*defaultFontSize)
         love.graphics.printf("[M] to toggle sound", 0.*screenWidth, 0.95*screenHeight, 2*0.9*screenWidth, "center")
         love.graphics.setNewFont(defaultFontSize)
