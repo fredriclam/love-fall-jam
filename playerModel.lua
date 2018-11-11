@@ -16,7 +16,7 @@ Model.height = 32 * Model.sy            -- Height of bounding box
 Model.animState = 0                     -- Enum state
 Model.animCycleDuration = 0.500         -- Seconds
 Model.ticker = 0                        -- Clock ticker
-Model.attackAnimDuration = 0.2          -- Seconds
+Model.attackAnimDuration = 0.35          -- Seconds
 Model.attackTime = 0                    -- Time at which attack was executed
 Model.headingLeft = true                -- Heading (boolean)
 Model.isAttacking = false
@@ -36,7 +36,7 @@ Model.grounded = false      -- Flag to mark when standing on ground
 
 -- Handle jump
 function Model.jump(self)
-    if Model.grounded then
+    if Model.grounded and not Model.isAttacking then
         Model.dy = -Model.jumpIntensity
         Model.grounded = false
     end
@@ -44,16 +44,20 @@ end
 
 -- Handle left walk
 function Model.left(self)
-    Model.isWalking = true
-    Model.x = Model.x - Model.dxStep
-    Model.headingLeft = true
+    if not (Model.isAttacking and Model.grounded) then
+        Model.isWalking = true
+        Model.x = Model.x - Model.dxStep
+        Model.headingLeft = true
+    end
 end
 
 -- Handle right walk
 function Model.right(self)
-    Model.isWalking = true
-    Model.x = Model.x + Model.dxStep
-    Model.headingLeft = false
+    if not (Model.isAttacking and Model.grounded) then
+        Model.isWalking = true
+        Model.x = Model.x + Model.dxStep
+        Model.headingLeft = false
+    end
 end
 
 -- Handle gravity updates
@@ -61,8 +65,6 @@ function Model.grav(self)
     -- Update speed
     if not Model.grounded then
         Model.dy = Model.dy + Model.gravIntensity
-        -- Update position
-        Model.y = Model.y + Model.dy
     end
 end
 
@@ -78,14 +80,16 @@ end
 
 -- Hardcoded check for collision with ground plane
 function Model.checkGroundCollision(self)
-    -- Hard-coded ground
+    -- Hard-coded ground support
+    if Model.dy >= 0 and Model.bbox().bottom >= Model.groundHeight then
+        Model.grounded = true
+    end
+    -- If going through ground limit
     if Model.bbox().bottom > Model.groundHeight then
         -- Send to ground height
         Model.y = Model.groundHeight - Model.height
         -- Kill speed
         Model.dy = 0
-        -- Set grounded
-        Model.grounded = true
     end
     -- Hard-coded wall clamping
     if Model.bbox().left < Model.boundaryxMin then
@@ -94,23 +98,76 @@ function Model.checkGroundCollision(self)
     if Model.bbox().right > Model.boundaryxMax then -- Adjust for top-left anchor
         Model.x = Model.boundaryxMax - Model.width
     end
-    
 end
 
 -- Checks for collision with other object
-function Model.checkCollision(self, obj)
-    
+function Model.checkCollision(obj)
+    -- Alias
+    box1 = Model.bbox()
+    box2 = obj.bbox()
+
+    -- Debug
+    -- print(box1.right .. ' ' .. box2.left .. ' ' .. box1.bottom .. ' ' .. box2.top)
+
+    -- Check for ground underneath our feet regardless of collisions
+    if math.abs(box1.bottom - box2.top) < 1e-5 and
+       box1.right > box2.left and box1.left < box2.right then -- Close enough bottom to top
+        Model.grounded = true
+    end
+
+    -- Classic rect collision
+    if box1.right > box2.left and box1.left < box2.right and
+       box1.top < box2.bottom and box1.bottom > box2.top
+    then -- Select minimum push off (positive quantities)
+        -- Compute corrections necessary for different rejection cases
+        local corrections = {
+            box2.left - box1.right,
+            box2.right - box1.left,
+            box2.bottom - box1.top,
+            box2.top - box1.bottom,
+        }
+        -- Find path of least resistance, i.e., the smallest push possible
+        local best = 1
+        local min = math.abs(corrections[1])
+        for i = 2, 4 do
+            if math.abs(corrections[i]) < min then
+                best = i
+                min = math.abs(corrections[best])
+            end
+        end
+
+        -- Apply corrections
+        if best <= 2 then -- Correct x
+            Model.x = Model.x + corrections[best]
+        else -- Correct y
+            Model.y = Model.y + corrections[best]
+        end
+
+        -- Grounding if case 4
+        if best == 4 then
+            Model.grounded = true
+        end
+    end
 end
 
 -- Performs series of updates before animation state update
 function Model.earlyUpdate(self)
-    Model.grav()
     Model.isWalking = false
+    Model.grav()
+    -- Update position y based on velocity
+    Model.y = Model.y + Model.dy
 end
 
 -- Performs series of clamping and animation updates (called after checking key presses)
-function Model.lateUpdate(self)
+function Model.lateUpdate(collisionList)
+    Model.grounded = false
+    -- Check collision against stage bounds
     Model.checkGroundCollision()
+    -- Check collision against all modeled tiles
+    for k, v in pairs(collisionList) do
+        Model.checkCollision(v)
+    end
+
     Model.updateAnim()
 end
 

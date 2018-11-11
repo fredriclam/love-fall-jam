@@ -38,11 +38,20 @@ function love.load()
         if player.headingLeft then
             i = i + 1
         end
-        return love.graphics.newQuad(16*j, 32*i,
+        return love.graphics.newQuad(32*j, 32*i,
         16, 32, spritesheet:getWidth(), spritesheet:getHeight())
     end
 
-    
+    -- Load models for tile map
+    collisionList = {}
+    for i = 1, tileCountVertical-5 do -- Ignore last 5 rows (optimization)
+        for j = 1, tileCountHorizontal do
+            if tileMap[i][j] >= 1 and tileMap[i][j] ~= 4 then
+                -- Push a tile model onto list
+                table.insert(collisionList, tileModel.newTile(32*(j-1), 32*(i-1), 32, 32))
+            end
+        end
+    end
 end
 
 -- Draw foreground tiles (after player is drawn)
@@ -95,8 +104,11 @@ function love.update()
     if love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") then
         player.executeAttack()
     end
+
+    
     -- Resolve ground collision and animation state
-    player.lateUpdate()
+    player.lateUpdate(collisionList)
+    
 end
 
 -- Controller
