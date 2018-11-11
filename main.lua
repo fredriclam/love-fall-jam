@@ -35,7 +35,6 @@ function love.load()
     -- love.window.setTitle("/fredric/")
     -- love.window.setMode(24*32, 18*32)
     
-
     -- Colour mask
     -- love.graphics.setColor(0,0,0)
     love.graphics.setNewFont(12)
@@ -97,6 +96,8 @@ function love.load()
         playerModel.newPlayer(1, 10*32, 10*32),
         playerModel.newPlayer(2, 12*32, 10*32),
     }
+    sounds["bgm"]:setLooping(true)
+    sounds["bgm"]:play()
 end
 
 -- Draw foreground tiles (after player is drawn)
