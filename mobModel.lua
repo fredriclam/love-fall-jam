@@ -1,4 +1,5 @@
 -- Mob model
+-- Collision is checked here for mob-projectile. For mob-player, see playerModel.
 
 local Model = {}
 -- Tile factory
@@ -74,6 +75,20 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         end
     end
 
+    -- Collision checker with projectile
+    local checkCollision = function(obj)
+        -- Alias
+        box1 = bbox()
+        box2 = obj.bbox()
+
+        -- Classic rect collision
+        if box1.right > box2.left and box1.left < box2.right and
+        box1.top < box2.bottom and box1.bottom > box2.top
+        then -- Select minimum push off (positive quantities)
+            return true
+        end
+    end
+
     -- Update wrapper
     local update = function(targetX, targetY)
         updatePos(targetX, targetY)
@@ -120,6 +135,7 @@ function Model.newMob(type, x, y, width, height, dx, dy)
         getdy = getdy,
         getSX = getSX,
         getSY = getSY,
+        checkCollision = checkCollision,
     }
 end
 

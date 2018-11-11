@@ -20,11 +20,21 @@ local spawnTimer = 0                      -- Spawn timer (s)
 local defaultSpawnCheckInterval = 1.0     -- Seconds
 local defaultSpawnChanceIncrement = 0.1   -- Increments of spawn chance at level 1
 local mobCount = 0                        -- Current number of mobs
-local baseMobSpeed = 1.0
+local baseMobSpeed = 1.0                  --   DIRTY
+local mobsDefeated = 0                    -- Number of mobs defeated in total
+
+-- Game state enumeration
+local gameStates = {
+    ready = 0,
+    playing = 1,
+    lose = 2,
+    win = 3,
+}
+-- Current global game state
+local currentGameState = gameStates["playing"]
 
 -- Graphical
 local headAdjustment = 11 -- Number of pixels to translate downward due to headAdjustment
-
 -- Key bindings
 local keySets = {
     -- Player 1 key bindings
@@ -167,30 +177,32 @@ function love.draw()
     -- For this draw cycle, draw at double the size (without affecting internal representation)
     -- love.graphics.scale(2,2)
 
-    -- Draw background
-    drawTileMap(bgTiles)
-    -- Print instructions on screen (background layer)
-    love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
-    love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
-    love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
-    -- Draw players
-    for i = 1, 2 do
-        love.graphics.draw(spritesheet, findPlayerSprite(players[i].isHeadingLeft(), players[i].getID(), players[i].getAnimState()),
-                           players[i].getX(), players[i].getY(), 0.0, players[i].getSX(), players[i].getSY())
-    end
-    -- Draw mobs
-    -- Move mobs
-    for k, v in pairs(mobList) do
-        love.graphics.draw(spritesheet, findMobSprite(v.getType(), v.getAnimState()), v.getX(), v.getY(), 
-                           0.0, v.getSX(), v.getSY())
-        
-    end
-    -- Draw foreground
-    drawTileMap(fgTiles)
-    -- Draw projectiles
-    for k, v in pairs(projectilesList) do
-        love.graphics.draw(spritesheet, findProjectileSprite(v.getSourceID(), v.isHeadingLeft()),
-                v.getX(), v.getY(), 0.0, v.getSX(), v.getSY())
+    if currentGameState == gameStates["playing"] then
+        -- Draw background
+        drawTileMap(bgTiles)
+        -- Print instructions on screen (background layer)
+        love.graphics.printf("SURVIVE", 0.*screenWidth, 0.2*screenHeight, screenWidth, "center")
+        love.graphics.printf("WASD + E", 0.*screenWidth, 0.25*screenHeight, 2*0.35*screenWidth, "center")
+        love.graphics.printf("ARROWS + /", 0.*screenWidth, 0.25*screenHeight, 2*0.7*screenWidth, "center")
+        -- Draw players
+        for i = 1, 2 do
+            love.graphics.draw(spritesheet, findPlayerSprite(players[i].isHeadingLeft(), players[i].getID(), players[i].getAnimState()),
+                            players[i].getX(), players[i].getY(), 0.0, players[i].getSX(), players[i].getSY())
+        end
+        -- Draw mobs
+        -- Move mobs
+        for k, v in pairs(mobList) do
+            love.graphics.draw(spritesheet, findMobSprite(v.getType(), v.getAnimState()), v.getX(), v.getY(), 
+                            0.0, v.getSX(), v.getSY())
+            
+        end
+        -- Draw foreground
+        drawTileMap(fgTiles)
+        -- Draw projectiles
+        for k, v in pairs(projectilesList) do
+            love.graphics.draw(spritesheet, findProjectileSprite(v.getSourceID(), v.isHeadingLeft()),
+                    v.getX(), v.getY(), 0.0, v.getSX(), v.getSY())
+        end
     end
 end
 
@@ -230,9 +242,11 @@ function love.update()
             end
         end
         -- Resolve ground, mob collision and animation state
-        players[i].lateUpdate(collisionList, mobList)
+        local isHit = players[i].lateUpdate(collisionList, mobList)
+        if isHit then
+            currentGameState = gameStates["lose"]
+        end
     end
-    
     -- Mob spawn sampler
     sampleSpawns()
     -- Call mob update
@@ -240,8 +254,7 @@ function love.update()
         -- Update using opposite player's coordinates
         v.update(players[3 - v.getType()["flavour"]].getX(), players[3 - v.getType()["flavour"]].getY())
     end
-
-    -- Call projectile update
+    -- Call projectiles update
     for k, v in pairs(projectilesList) do
         -- Update using opposite player's coordinates
         v.update()
@@ -249,16 +262,16 @@ function love.update()
             table.remove(projectilesList, k)
         end
     end
-end
-
--- Key press controller
-function love.keypressed(key, scancode, isrepeat)
-    -- if key == "up" then
-    --     
-    -- elseif key == "left" then
-    --     
-    -- end
-    -- print(key)
+    -- Check mob-projectile collision
+    for kMob, mob in pairs(mobList) do
+        for kProj, proj in pairs(projectilesList) do
+            if mob.checkCollision(proj) then -- Delete mob
+                table.remove(mobList, kMob)
+                mobCount = mobCount - 1
+                mobsDefeated = mobsDefeated + 1
+            end
+        end
+    end
 end
 
 -- Spawn sampler
@@ -350,4 +363,15 @@ function sampleSpawns()
             currentSpawnChance = currentSpawnChance + (1 - currentSpawnChance)*spawnChanceIncrement
         end
     end
+end
+
+
+-- Key press controller
+function love.keypressed(key, scancode, isrepeat)
+    -- if key == "up" then
+    --     
+    -- elseif key == "left" then
+    --     
+    -- end
+    -- print(key)
 end

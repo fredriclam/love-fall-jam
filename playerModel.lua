@@ -163,6 +163,20 @@ function Model.newPlayer(playerID, spawnX, spawnY)
         end
     end
 
+    -- Returns true if colliding with object
+    local checkHostileCollision = function(obj)
+        -- Alias
+        box1 = bbox()
+        box2 = obj.bbox()
+
+        -- Classic rect collision
+        if box1.right > box2.left and box1.left < box2.right and
+        box1.top < box2.bottom and box1.bottom > box2.top
+        then -- Select minimum push off (positive quantities)
+            return true
+        end
+    end
+
     -- Performs series of updates before animation state update
     local earlyUpdate = function()
         self.isWalking = false
@@ -228,7 +242,8 @@ function Model.newPlayer(playerID, spawnX, spawnY)
     end
 
     -- Performs series of clamping and animation updates (called after checking key presses)
-    local lateUpdate = function(collisionList)
+    -- Returns isHit
+    local lateUpdate = function(collisionList, mobsList)
         self.grounded = false
         -- Check collision against stage bounds
         checkGroundCollision()
@@ -236,8 +251,19 @@ function Model.newPlayer(playerID, spawnX, spawnY)
         for k, v in pairs(collisionList) do
             checkCollision(v)
         end
-
+        -- Check collision against mobs
+        local isHit = false
+        for k, v in pairs(mobsList) do
+            isHit = isHit or checkHostileCollision(v)
+        end
+        -- Update animation state
         updateAnim()
+
+        if isHit then
+            return true
+        else
+            return false
+        end
     end
 
     local getID = function() return self.playerID end
