@@ -92,7 +92,7 @@ function love.load()
     -- love.graphics.setBackgroundColor(18/255,3/255,41/255)
 
     -- Loading spritesheet
-    spritesheet = love.graphics.newImage("spritesheet.png")
+    spritesheet = love.graphics.newImage("/resource/spritesheet.png")
     -- Use crisper filter for resizing
     spritesheet:setFilter('nearest', 'nearest')
     
@@ -166,16 +166,15 @@ function love.load()
 
     -- Load audio sources into table
     sounds = {
-        jump = love.audio.newSource("jump.wav", "static"),
+        jump = love.audio.newSource("/resource/jump.wav", "static"),
         beams = {
-            love.audio.newSource("beam1.wav", "static"),
-            love.audio.newSource("beam2.wav", "static"),
+            love.audio.newSource("/resource/beam1.wav", "static"),
+            love.audio.newSource("/resource/beam2.wav", "static"),
         },
-        beamRed = love.audio.newSource("beam2.wav", "static"),
-        victory = love.audio.newSource("victory.wav", "static"),
-        destroy = love.audio.newSource("destroy.wav", "static"),
-        bgm = love.audio.newSource("bgm.wav", "static"),
-        defeat = love.audio.newSource("defeat.wav", "static"),
+        victory = love.audio.newSource("/resource/victory.wav", "static"),
+        destroy = love.audio.newSource("/resource/destroy.wav", "static"),
+        bgm = love.audio.newSource("/resource/bgm.wav", "static"),
+        defeat = love.audio.newSource("/resource/defeat.wav", "static"),
     }
 
     -- Init players
