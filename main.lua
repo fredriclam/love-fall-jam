@@ -18,11 +18,12 @@ local globalLevel = 1                     -- Level of the global stage
 local mobMaxCount = 10                    -- Max number of mobs
 local currentSpawnChance = 0              -- Initial spawn chance (increases every failed spawn)
 local spawnTimer = 0                      -- Spawn timer (s)
-local defaultSpawnCheckInterval = 1.0     -- Seconds
+local defaultSpawnCheckInterval = 0.7     -- Seconds
 local defaultSpawnChanceIncrement = 0.1   -- Increments of spawn chance at level 1
 local mobCount = 0                        -- Current number of mobs
 local mobsDefeated = 0                    -- Number of mobs defeated in total
 local previousDefeated = 0                -- Secondary counter for mobs defeated in previous levels
+local playerHitBoxAdjustment = 5          -- Trimming the hitbox
 
 -- Game state enumeration
 local gameStates = {
@@ -34,7 +35,7 @@ local gameStates = {
 -- Current global game state
 local currentGameState = gameStates["ready"]
 -- Global timers
-local loseTimer = 0                    -- Decumulates after losing
+local stateTimer = 0                    -- Decumulates after losing
 -- Graphical
 local defaultFontSize = 18
 local headAdjustment = 11           -- Number of pixels to translate downward due to headAdjustment
@@ -71,11 +72,21 @@ local levelObjectives = { -- Number of mobs needed to advance level
     14,
     14, -- 7
 }
+finalLevel = 7
+local levelObjectives = { -- Number of mobs needed to advance level
+    1,
+    0,
+    0,
+    0,
+    0, -- 5
+    0,
+    1, -- 7
+}
 
 function initPlayers()
     return {
-        playerModel.newPlayer(1, 10*32, 10*32),
-        playerModel.newPlayer(2, 12*32, 10*32),
+        playerModel.newPlayer(1, 2*16, 2*(32-playerHitBoxAdjustment), 10*32, 10*32),
+        playerModel.newPlayer(2, 2*16, 2*(32-playerHitBoxAdjustment), 12*32, 10*32),
     }
 end
 
@@ -112,7 +123,7 @@ function love.load()
         if id == 2 then -- Shift down for second player
             i = i + 2
         end
-        return love.graphics.newQuad(32*j, 32*i, 16, 32,
+        return love.graphics.newQuad(32*j, 32*i+playerHitBoxAdjustment, 16, 32-playerHitBoxAdjustment,
                                      spritesheet:getWidth(), spritesheet:getHeight())
     end
 
@@ -216,7 +227,9 @@ function love.draw()
     love.graphics.draw(spritesheet, findBackground(backgroundDepth + jitterX, jitterY), 0, 0, 0.0, backgroundScale, backgroundScale)
 
     -- Shared tasks
-    if currentGameState == gameStates["playing"]  or currentGameState == gameStates["lose"] then
+    if currentGameState == gameStates["playing"]  or currentGameState == gameStates["lose"]
+       or currentGameState == gameStates["victory"]
+    then
         -- Draw background
         drawTileMap(bgTiles)
         -- Print instructions on screen (background layer) only in playing mode
@@ -284,7 +297,7 @@ function love.draw()
         love.graphics.setColor(1, 1, 1, 100)
     end -- playing and lose states
 
-    -- Regular states
+    -- Pure game states
     if currentGameState == gameStates["ready"] then
         love.graphics.setColor(0, 0, 0, 100)
         love.graphics.printf("Enter to start your", 0.*screenWidth, 0.35*screenHeight, 2*0.5*screenWidth, "center")
@@ -294,9 +307,8 @@ function love.draw()
         love.graphics.printf("Doomed Descent", 0.*screenWidth, 0.4*screenHeight, 2*0.5*screenWidth, "center")
         love.graphics.setNewFont(defaultFontSize)
         love.graphics.setColor(1, 1, 1, 100)
-        
     elseif currentGameState == gameStates["lose"] then
-        if loseTimer > -4 then -- Lose timer from what it's set to (>0) down to -4
+        if stateTimer > -3 then -- Lose timer from what it's set to (>0) down to -3
             -- Print statistics
             if globalLevel < 4 then
                 love.graphics.setColor(93/255, 22/255, 187/255, 100)
@@ -317,8 +329,14 @@ function love.draw()
             currentGameState = gameStates["ready"]
         end
         -- Update lose timer
-        loseTimer = loseTimer - love.timer.getDelta()
-    end
+        stateTimer = stateTimer - love.timer.getDelta()
+    elseif currentGameState == gameStates["victory"] then
+        love.graphics.setNewFont(1.5*defaultFontSize)
+        -- Victory message
+        love.graphics.printf("Job's finished. Victory?", 0.*screenWidth, 0.25*screenHeight, 2*0.5*screenWidth, "center")
+        love.graphics.setNewFont(defaultFontSize)
+        love.graphics.printf("Enter to return to main menu.", 0.*screenWidth, 0.35*screenHeight, 2*0.5*screenWidth, "center")
+    end -- Pure game states
 
 end
 
@@ -328,19 +346,26 @@ function love.update()
         sounds["bgm"]:pause()
     end
 
-    if currentGameState == gameStates["ready"] then
+    if currentGameState == gameStates["ready"] then -- game state: ready
         if love.keyboard.isDown("return") then
             sounds["beams"][1]:play()
             currentGameState = gameStates["playing"]
         end
-    elseif currentGameState == gameStates["playing"] then
-        -- Check for objective
+    elseif currentGameState == gameStates["playing"] then -- game state: playing
+        -- Check if reached objective
         if mobsDefeated >= levelObjectives[globalLevel] then
-            -- Level up
-            globalLevel = globalLevel + 1
-            -- Reset mobs defeated
-            previousDefeated = previousDefeated + mobsDefeated
-            mobsDefeated = 0
+            -- Check for victory
+            if globalLevel == finalLevel then -- Change to victory state
+                currentGameState = gameStates["victory"]
+                sounds["victory"]:play()
+            else
+                -- Level up
+                globalLevel = globalLevel + 1
+                -- Cache mobs defeated count to previousDefeated and Reset mobs defeated
+                previousDefeated = previousDefeated + mobsDefeated
+                mobsDefeated = 0
+            end
+            
         end
         -- Update players
         for i = 1, 2 do
@@ -377,7 +402,7 @@ function love.update()
             if isHit then
                 sounds["defeat"]:play()
                 currentGameState = gameStates["lose"]
-                loseTimer = 1.0 -- Set lose timer for delayed animation
+                stateTimer = 1.0 -- Set lose timer for delayed animation
                 love.graphics.setColor(1, 0, 0, 100) -- Flash red on next draw cycle
             end
         end
@@ -529,15 +554,19 @@ function stageReset()
     globalLevel = 1
 
     -- Destroy all instances
-    for k, v in pairs(mobList) do
-        table.remove(mobList, k)
-    end
-    for k, v in pairs(players) do
-        table.remove(players, k)
-    end
-    for k, v in pairs(projectilesList) do
-        table.remove(projectilesList, k)
-    end
+    -- for k, v in pairs(mobList) do
+    --     table.remove(mobList, k)
+    -- end
+    -- for k, v in pairs(players) do
+    --     table.remove(players, k)
+    -- end
+    -- for k, v in pairs(projectilesList) do
+    --     table.remove(projectilesList, k)
+    -- end
+    -- Destroy all instances, relying on automatic garbage collector
+    mobList = {}
+    players = {}
+    projectilesList = {}
 
     -- Re-initialize players
     players = initPlayers()

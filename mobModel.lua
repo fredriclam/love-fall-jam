@@ -4,7 +4,7 @@
 local Model = {}
 
 -- Static variables
-Model.baseMobSpeed = 2.0
+Model.baseMobSpeed = 1.4
 Model.baseAccel = 0.1
 
 -- Tile factory

@@ -9,3 +9,7 @@ The goal of this project was to explore LOVE2D as an option for developing a 16-
 Sounds produced on [BeepBox](https://www.beepbox.co). Made using only hand-rolled asset and code, on an open-source framework. Inspired by the likes of Rockman and Risk of Rain. Fueled by coffee and bubble tea.
 
 ![In-game screenshot](https://raw.githubusercontent.com/fredriclam/love-fall-jam/master/preview.png)
+
+### Technical
+
+The game can be run using LOVE2D, which runs main.lua. Other scripts are required by the main script to play.

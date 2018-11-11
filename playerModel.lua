@@ -5,7 +5,7 @@
 local Model = {}
 
 -- Player factory
-function Model.newPlayer(playerID, spawnX, spawnY)
+function Model.newPlayer(playerID, width, height, spawnX, spawnY)
 
     -- If want to use metatables:
     -- setmetatable(self)
@@ -17,14 +17,14 @@ function Model.newPlayer(playerID, spawnX, spawnY)
         y = spawnY,                        -- Initial y
         sx = 2,                            -- Player scale (x)
         sy = 2,
-        width = 16 * 2,                    -- Width of bounding box: pixel height times sx
-        height = 32 * 2,                   -- Height of bounding box: pixel height times sy
+        width = width,                    -- Width of bounding box: pixel height times sx
+        height = height,                   -- Height of bounding box: pixel height times sy
 
         -- Animation and anim states
         animState = 0,                     -- Enum state
         animCycleDuration = 0.500,         -- Seconds
         ticker = 0,                        -- Clock ticker
-        attackAnimDuration = 0.4,          -- Seconds
+        attackAnimDuration = 0.6,          -- Seconds
         attackTime = 0,                    -- Time at which attack was executed
         headingLeft = true,                -- Heading (boolean)
         isAttacking = false,
